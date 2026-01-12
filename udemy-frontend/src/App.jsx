@@ -1,33 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 
+import { useEffect, useState } from 'react'
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await fetch('/api/hello')
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const json = await response.json()
+        if (!cancelled) setData(json)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <h1>Frontend reading backend data</h1>
+      {loading ? <p>Loading…</p> : null}
+      {error ? <p style={{ color: 'crimson' }}>Error: {error}</p> : null}
+      {data ? (
+        <div className="card" style={{ textAlign: 'left' }}>
+          <div>
+            <strong>message:</strong> {data.message}
+          </div>
+          <div>
+            <strong>serverTime:</strong> {data.serverTime}
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }
