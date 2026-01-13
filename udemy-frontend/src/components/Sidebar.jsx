@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import "./Sidebar.css";
+import './Sidebar.css';
 
 const navItems = [
     { label: "Dashboard", to: "/dashboard", icon: "🏠" },

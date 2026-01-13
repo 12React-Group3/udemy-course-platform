@@ -1,7 +1,7 @@
 .app-shell {
     display: flex;
     min-height: 100vh;
-    background: #f9fafb;
+    background: var(--bg);
 }
 
 /* Main area */
@@ -12,28 +12,37 @@
     min-width: 0;
 }
 
+/* Topbar like Pilot (clean white + border) */
 .app-topbar {
-    height: 56px;
-    background: #ffffff;
-    border-bottom: 1px solid #e6e6e6;
+    height: var(--topbar-h, 56px);
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     padding: 0 14px;
     gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .app-topbar-title {
-    font-weight: 600;
-    color: #111827;
+    font-weight: 700;
+    color: var(--text);
 }
 
 .app-burger {
     display: none;
-    border: 1px solid #e5e7eb;
-    background: white;
+    border: 1px solid var(--border);
+    background: var(--panel);
     border-radius: 10px;
     padding: 6px 10px;
     cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.app-burger:hover {
+    background: rgba(0, 0, 0, 0.02);
 }
 
 .app-content {
