@@ -1,57 +1,30 @@
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import AppLayout from "./layouts/AppLayout";
 
-import { useEffect, useState } from 'react'
+import DashboardPage from "./pages/DashboardPage";
+import CoursesPage from "./pages/CoursesPage";
+import TasksPage from "./pages/TasksPage";
+import ProfilePage from "./pages/ProfilePage";
 
-function App() {
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const response = await fetch('/api/hello')
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
-
-        const json = await response.json()
-        if (!cancelled) setData(json)
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+export default function App() {
   return (
-    <>
-      <h1>Frontend reading backend data</h1>
-      {loading ? <p>Loading…</p> : null}
-      {error ? <p style={{ color: 'crimson' }}>Error: {error}</p> : null}
-      {data ? (
-        <div className="card" style={{ textAlign: 'left' }}>
-          <div>
-            <strong>message:</strong> {data.message}
-          </div>
-          <div>
-            <strong>serverTime:</strong> {data.serverTime}
-          </div>
-        </div>
-      ) : null}
-    </>
-  )
-}
+    <BrowserRouter>
+      <Routes>
+        {/* Auth pages will be added by Rongwei; keep these routes reserved */}
+        {/* <Route path="/login" element={<LoginPage />} /> */}
+        {/* <Route path="/register" element={<RegisterPage />} /> */}
 
-export default App
+        {/* Layout (authenticated pages) */}
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
+
+        <Route path="*" element={<div style={{ padding: 18 }}>404 Not Found</div>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
