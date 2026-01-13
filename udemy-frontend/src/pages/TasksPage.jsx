@@ -1,3 +1,8 @@
 export default function TasksPage() {
-    return <h1>Tasks</h1>
+    return (
+        <div>
+            <h1>Tasks</h1>
+            <p>Select a course to view tasks.</p>
+        </div>
+    );
 }
