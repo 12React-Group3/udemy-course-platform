@@ -23,7 +23,8 @@ const courseSchema = new Schema(
     title: { type: String, required: true, maxlength: 100 },
     description: { type: String, maxlength: 1000 },
     videoURL: { type: String }, // TEXT in SQL → String in Mongo
-    owner: { type: String, ref: "User", required: true, maxlength: 20 }, // userId
+    // list of userIds involved with the course (e.g., teacher + enrolled learners)
+    involved: [{ type: String, ref: "User", required: true, maxlength: 20 }],
     createdAt: { type: Date, default: Date.now },
     courseTag: { type: String, maxlength: 50 },
   },
