@@ -1,24 +1,41 @@
-const express = require('express')
-const cors = require('cors')
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import courseRoutes from "./routes/courseRoutes.js";
+import { connectDB } from "./config/db.js";
 
-const app = express()
-const port = process.env.PORT ? Number(process.env.PORT) : 5000
+dotenv.config();
 
-app.use(
-	cors({
-		origin: ['http://localhost:5173'],
-	}),
-)
-app.use(express.json())
+const app = express();
 
-app.get('/api/hello', (req, res) => {
-	res.json({
-		message: 'Hello from Node backend!',
-		serverTime: new Date().toISOString(),
-	})
-})
+app.use(cors());
+app.use(express.json());
 
-app.listen(port, () => {
-	// eslint-disable-next-line no-console
-	console.log(`Backend listening on http://localhost:${port}`)
-})
+app.get("/", (req, res) => {
+  res.send("API running");
+});
+
+app.use("/api/courses", courseRoutes);
+
+const PORT = process.env.PORT || 5000;
+
+async function start() {
+  try {
+    console.log("➡️ starting server...");
+    console.log("PORT =", process.env.PORT);
+    console.log("MONGO_URI exists =", Boolean(process.env.MONGO_URI));
+
+    await connectDB(process.env.MONGO_URI);
+
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Failed to start server:");
+    console.error(err); // print full error
+    process.exit(1);
+  }
+}
+
+start();
+
