@@ -5,10 +5,31 @@
     width: var(--sidebar-w);
     min-height: 100vh;
     background: var(--panel);
-    border-right: 1px solid var(--border);
+    border-left: 1px solid var(--border);
     padding: 16px 14px;
     position: sticky;
     top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+.sb-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sb-collapse {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 6px 9px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.sb-collapse:hover {
+    background: rgba(0, 0, 0, 0.02);
 }
 
 .sb-header {
@@ -84,34 +105,78 @@
     display: none;
 }
 
+.sb.collapsed {
+    width: 72px;
+    /* slim sidebar */
+    padding: 16px 10px;
+}
+
+.sb.collapsed .sb-title {
+    display: none;
+    /* hide big title */
+}
+
+.sb.collapsed .sb-link span:last-child {
+    display: none;
+    /* hide label text */
+}
+
+.sb.collapsed .sb-link {
+    justify-content: center;
+    /* center icons */
+    padding: 10px;
+}
+
 @media (max-width: 900px) {
     .sb {
         position: fixed;
-        left: -320px;
+        right: -320px;
+        left: auto;
         top: 0;
         height: 100vh;
         z-index: 40;
         width: min(82vw, 320px);
-        border-right: 1px solid var(--border);
+        border-left: 1px solid var(--border);
+        border-right: none;
         box-shadow: var(--shadow-md);
-        transition: left 180ms ease;
+        transition: right 180ms ease;
     }
 
     .sb.open {
-        left: 0;
+        right: 0;
     }
 
     .sb-overlay.show {
         display: block;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, .35);
-        z-index: 30;
+        /* top/right/bottom/left = 0 */
+        background: rgba(0, 0, 0, 0.35);
+        z-index: 35;
+        /* must be less than sidebar z-index (40) */
     }
 
     .sb-close {
         display: inline-flex;
-        align-items: center;
-        justify-content: center;
     }
+
+    .sb-collapse {
+        display: none;
+    }
+}
+
+
+.sb-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 6px;
+}
+
+.sb-sectionLabel {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    padding: 0 12px 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }

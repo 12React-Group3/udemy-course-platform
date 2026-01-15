@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { isAdmin } from "../auth/authStore";
 import './Sidebar.css';
 
 const navItems = [
@@ -8,7 +9,12 @@ const navItems = [
     { label: "Profile", to: "/profile", icon: "👤" },
 ];
 
-export default function Sidebar({ isOpen, onClose }) {
+const adminItems = [
+    { label: "Admin", to: "/admin", icon: "🛠️" },
+];
+
+export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
+    const showAdmin = isAdmin();
     return (
         <>
             {/* Mobile overlay */}
@@ -17,12 +23,27 @@ export default function Sidebar({ isOpen, onClose }) {
                 onClick={onClose}
             />
 
-            <aside className={`sb ${isOpen ? "open" : ""}`}>
+            <aside className={`sb ${isOpen ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
                 <div className="sb-header">
                     <div className="sb-title">Udemy Course Platform</div>
-                    <button className="sb-close" onClick={onClose} aria-label="Close sidebar">
-                        ✕
-                    </button>
+
+                    <div className="sb-header-actions">
+                        {/* Desktop collapse toggle */}
+                        <button
+                            className="sb-collapse"
+                            onClick={onToggleCollapse}
+                            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                            type="button"
+                        >
+                            {collapsed ? "⟨" : "⟩"}
+                        </button>
+
+                        {/* Mobile close button */}
+                        <button className="sb-close" onClick={onClose} aria-label="Close sidebar" type="button">
+                            ✕
+                        </button>
+                    </div>
                 </div>
 
                 <nav className="sb-nav">
@@ -40,6 +61,26 @@ export default function Sidebar({ isOpen, onClose }) {
                         </NavLink>
                     ))}
                 </nav>
+
+                {showAdmin && (
+                    <>
+                        <div className="sb-divider" />
+                        <div className="sb-sectionLabel">Admin</div>
+
+                        {adminItems.map((item) => (
+                            <NavLink
+                                key={item.to}
+                                to={item.to}
+                                className={({ isActive }) => `sb-link ${isActive ? "active" : ""}`}
+                                onClick={onClose}
+                            >
+                                <span className="sb-icon" aria-hidden="true">{item.icon}</span>
+                                <span>{item.label}</span>
+                            </NavLink>
+                        ))}
+                    </>
+                )}
+
             </aside>
         </>
     );

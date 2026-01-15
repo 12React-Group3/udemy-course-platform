@@ -24,11 +24,13 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    justify-content: space-between;
 }
 
 .app-topbar-title {
     font-weight: 700;
     color: var(--text);
+    order: 1;
 }
 
 .app-burger {
@@ -39,6 +41,7 @@
     padding: 6px 10px;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
+    order: 2;
 }
 
 .app-burger:hover {
@@ -49,9 +52,30 @@
     padding: 18px;
 }
 
+.app-collapse {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.app-collapse:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.app-topbar-spacer {
+    flex: 1;
+}
+
 /* Mobile: sidebar is drawer, so burger appears */
 @media (max-width: 900px) {
     .app-burger {
         display: inline-block;
+    }
+
+    .app-collapse {
+        display: none;
     }
 }
