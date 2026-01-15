@@ -81,6 +81,14 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
                     </>
                 )}
 
+                {!collapsed && (
+                    <div className="sidebar-footer">
+                        <button className="sidebar-logout" type="button">
+                            Logout
+                        </button>
+                    </div>
+                )}
+
             </aside>
         </>
     );

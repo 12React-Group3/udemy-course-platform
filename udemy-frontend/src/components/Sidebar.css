@@ -11,6 +11,8 @@
     top: 0;
     max-height: 100vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .sb-header-actions {
@@ -160,8 +162,22 @@
         display: inline-flex;
     }
 
-    .sb-collapse {
-        display: none;
+    .sb.collapsed {
+        width: min(82vw, 320px);
+        padding: 16px 14px;
+    }
+
+    .sb.collapsed .sb-title {
+        display: flex;
+    }
+
+    .sb.collapsed .sb-link span:last-child {
+        display: inline;
+    }
+
+    .sb.collapsed .sb-link {
+        justify-content: flex-start;
+        padding: 10px 12px;
     }
 }
 
@@ -179,4 +195,30 @@
     padding: 0 12px 6px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    /* pushes footer to bottom if sidebar is flex column */
+    padding: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-logout {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.sidebar-logout:hover {
+    border-color: rgba(0, 0, 0, 0.24);
+}
+
+.sidebar.collapsed .sidebar-logout {
+    padding: 10px;
+    /* icon-only later if you want */
 }
