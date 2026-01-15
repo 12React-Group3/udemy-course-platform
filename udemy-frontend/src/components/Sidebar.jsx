@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { isAdmin } from "../auth/authStore";
+import { isAdmin, logout } from "../auth/authStore";
 import './Sidebar.css';
 
 const navItems = [
@@ -83,7 +83,14 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
 
                 {!collapsed && (
                     <div className="sidebar-footer">
-                        <button className="sidebar-logout" type="button">
+                        <button
+                            className="sidebar-logout"
+                            type="button"
+                            onClick={() => {
+                                logout();
+                                onClose?.(); // closes mobile drawer if open (safe no-op on desktop)
+                            }}
+                        >
                             Logout
                         </button>
                     </div>

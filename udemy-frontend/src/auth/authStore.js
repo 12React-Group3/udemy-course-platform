@@ -16,3 +16,17 @@ export function getUserRole() {
 export function isAdmin() {
     return String(getUserRole()).toLowerCase() === "admin";
 }
+
+// Write auth (used by login/register later)
+export function setAuth(authObj) {
+    if (!authObj) {
+        localStorage.removeItem(KEY);
+        return;
+    }
+    localStorage.setItem(KEY, JSON.stringify(authObj));
+}
+
+// Clear auth (used by logout)
+export function logout() {
+    localStorage.removeItem(KEY);
+}
