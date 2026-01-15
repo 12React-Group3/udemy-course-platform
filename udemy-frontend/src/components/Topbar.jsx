@@ -1,33 +1,52 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './Topbar.css'
 import logo from '../assets/logo.png'
+import { fetchAllCourses } from '../api/courses'
 
+/**
+ * Topbar
+ * 
+ * Props:
+ * - isLoggedIn: boolean - whether the user is logged in (controlled by auth module)
+ * - user: object - user info { userName, email, ... }
+ * - onLogout: function - logout callback
+ * - onLogoClick: function - click logo callback
+ * - onToggleSidebar: function - toggle sidebar callback
+ */
 function Topbar({ 
   isLoggedIn = false, 
-  onToggleSidebar, 
-  onSignIn, 
-  onSignUp, 
+  user = null,
   onLogout,
-  onSearch,
-  onLogoClick 
+  onLogoClick,
+  onToggleSidebar 
 }) {
+  const navigate = useNavigate()
+
   const [searchQuery, setSearchQuery] = useState('')
+  const [allCourses, setAllCourses] = useState([])
   const [searchResults, setSearchResults] = useState([])
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
 
-  // Mock search results for demonstration
-  const mockCourses = [
-    { courseId: '1', title: 'React - The Complete Guide', description: 'Learn React from scratch' },
-    { courseId: '2', title: 'Node.js Masterclass', description: 'Backend development with Node' },
-    { courseId: '3', title: 'MongoDB Fundamentals', description: 'NoSQL database essentials' },
-    { courseId: '4', title: 'Express.js Deep Dive', description: 'Build REST APIs with Express' },
-    { courseId: '5', title: 'JavaScript ES6+', description: 'Modern JavaScript features' },
-  ]
+  // Fetch all courses on mount for search functionality
+  useEffect(() => {
+    async function loadCourses() {
+      try {
+        const response = await fetchAllCourses()
+        if (response.success) {
+          setAllCourses(response.data || [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch courses:', err)
+      }
+    }
+    loadCourses()
+  }, [])
 
-  // Debounced search effect
+  // Debounced search - filter courses locally
   useEffect(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
@@ -40,21 +59,14 @@ function Topbar({
 
     setIsLoading(true)
     debounceRef.current = setTimeout(() => {
-      // Filter mock data (will replace with API call)
-      // Example API call structure:
-      // const response = await fetch(`/api/courses/search?q=${encodeURIComponent(searchQuery)}`)
-      // const data = await response.json()
-      // setSearchResults(data)
-      
-      const filtered = mockCourses.filter(course =>
-        course.title.toLowerCase().includes(searchQuery.toLowerCase())
+      const query = searchQuery.toLowerCase()
+      const filtered = allCourses.filter(course =>
+        course.title?.toLowerCase().includes(query) ||
+        course.description?.toLowerCase().includes(query) ||
+        course.courseTag?.toLowerCase().includes(query)
       )
-      setSearchResults(filtered)
+      setSearchResults(filtered.slice(0, 5)) // Limit to 5 results
       setIsLoading(false)
-      
-      if (onSearch) {
-        onSearch(searchQuery)
-      }
     }, 300)
 
     return () => {
@@ -62,7 +74,7 @@ function Topbar({
         clearTimeout(debounceRef.current)
       }
     }
-  }, [searchQuery, onSearch])
+  }, [searchQuery, allCourses])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -77,10 +89,24 @@ function Topbar({
   }, [])
 
   const handleResultClick = (course) => {
-    setSearchQuery(course.title)
+    setSearchQuery('')
     setIsSearchFocused(false)
-    // add navigation logic here
-    console.log('Selected course:', course)
+    navigate(`/courses/${course.courseId}`)
+  }
+
+  const handleSignIn = () => {
+    navigate('/login')
+  }
+
+  const handleSignUp = () => {
+    navigate('/register')
+  }
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout()
+    }
+    navigate('/')
   }
 
   const showDropdown = isSearchFocused && searchQuery.trim() !== ''
@@ -127,12 +153,14 @@ function Topbar({
             {searchResults.length > 0 ? (
               searchResults.map((course) => (
                 <div
-                  key={course.courseId}
+                  key={course.courseId || course._id}
                   className="search-result-item"
                   onClick={() => handleResultClick(course)}
                 >
                   <div className="search-result-title">{course.title}</div>
-                  <div className="search-result-description">{course.description}</div>
+                  <div className="search-result-description">
+                    {course.description || 'No description available'}
+                  </div>
                 </div>
               ))
             ) : (
@@ -145,7 +173,7 @@ function Topbar({
       <div className="topbar-right">
         {isLoggedIn ? (
           <>
-            <button className="btn btn-logout" onClick={onLogout}>
+            <button className="btn btn-logout" onClick={handleLogout}>
               Logout
             </button>
             <button className="btn btn-burger" onClick={onToggleSidebar} aria-label="Toggle sidebar">
@@ -156,10 +184,10 @@ function Topbar({
           </>
         ) : (
           <>
-            <button className="btn btn-signin" onClick={onSignIn}>
+            <button className="btn btn-signin" onClick={handleSignIn}>
               Sign In
             </button>
-            <button className="btn btn-signup" onClick={onSignUp}>
+            <button className="btn btn-signup" onClick={handleSignUp}>
               Sign Up
             </button>
           </>

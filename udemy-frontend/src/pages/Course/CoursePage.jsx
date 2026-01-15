@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import Topbar from "../../components/Topbar";
 import { fetchCourseById } from "../../api/courses";
 
 export default function CoursePage() {
   const { courseId } = useParams();
+  const navigate = useNavigate();
 
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,42 +57,45 @@ export default function CoursePage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
-      <Link to="/courses" style={{ display: "inline-block", marginBottom: 12 }}>
-        ← Back
-      </Link>
+    <>
+      <Topbar onLogoClick={() => navigate("/")} />
+      <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
+        <Link to="/courses" style={{ display: "inline-block", marginBottom: 12 }}>
+          ← Back
+        </Link>
 
-      <h1 style={{ margin: "6px 0" }}>{course.title}</h1>
-      <div style={{ opacity: 0.8, marginBottom: 12 }}>
-        <span>CourseId: {course.courseId}</span>
-        {" · "}
-        <span>Instructor: {course.instructor}</span>
-        {course.courseTag ? (
-          <>
-            {" · "}
-            <span>Tag: {course.courseTag}</span>
-          </>
-        ) : null}
-      </div>
+        <h1 style={{ margin: "6px 0" }}>{course.title}</h1>
+        <div style={{ opacity: 0.8, marginBottom: 12 }}>
+          <span>CourseId: {course.courseId}</span>
+          {" · "}
+          <span>Instructor: {course.instructor}</span>
+          {course.courseTag ? (
+            <>
+              {" · "}
+              <span>Tag: {course.courseTag}</span>
+            </>
+          ) : null}
+        </div>
 
-      {course.description ? (
-        <p style={{ lineHeight: 1.6 }}>{course.description}</p>
-      ) : (
-        <p style={{ opacity: 0.8 }}>No description yet.</p>
-      )}
-
-      <div style={{ marginTop: 18 }}>
-        <h2 style={{ marginBottom: 10 }}>Course Video</h2>
-
-        {!course.videoURL ? (
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-            No videoURL yet.
-          </div>
+        {course.description ? (
+          <p style={{ lineHeight: 1.6 }}>{course.description}</p>
         ) : (
-          <VideoPlayer url={course.videoURL} />
+          <p style={{ opacity: 0.8 }}>No description yet.</p>
         )}
+
+        <div style={{ marginTop: 18 }}>
+          <h2 style={{ marginBottom: 10 }}>Course Video</h2>
+
+          {!course.videoURL ? (
+            <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+              No videoURL yet.
+            </div>
+          ) : (
+            <VideoPlayer url={course.videoURL} />
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

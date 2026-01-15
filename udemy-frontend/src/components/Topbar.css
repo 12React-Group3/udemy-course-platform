@@ -216,6 +216,7 @@
 }
 
 .btn-burger {
+  display: none;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -231,6 +232,13 @@
 .btn-burger svg {
   width: 24px;
   height: 24px;
+}
+
+/* Show burger button only on screens smaller than 900px */
+@media (max-width: 900px) {
+  .btn-burger {
+    display: inline-flex;
+  }
 }
 
 /* Responsive Styles */
