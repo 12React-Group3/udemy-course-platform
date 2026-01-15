@@ -1,16 +1,16 @@
-// models.js (or separate into files)
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
-const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 /** User */
 const userSchema = new Schema(
   {
-    userId: { type: String, required: true, unique: true, maxlength: 20 },
+    // use MongoDB _id; no separate userId needed
     userName: { type: String, required: true, maxlength: 20 },
     email: { type: String, required: true, unique: true, maxlength: 100, lowercase: true, trim: true },
     password: { type: String, required: true }, // store hashed password in real apps
-    profileImage: { type: String }, // could be URL or path
+    profileImage: { type: String }, // legacy field (URL/path)
     role: { type: String, enum: ["admin", "learner"], required: true, default: "learner" },
   },
   { timestamps: true }
@@ -23,8 +23,8 @@ const courseSchema = new Schema(
     title: { type: String, required: true, maxlength: 100 },
     description: { type: String, maxlength: 1000 },
     videoURL: { type: String }, // TEXT in SQL → String in Mongo
-    instructor: { type: String, ref: "User", required: true, maxlength: 20 },
-    students: [{ type: String, ref: "User", required: true, maxlength: 20 }],
+    instructor: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    students: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
     createdAt: { type: Date, default: Date.now },
     courseTag: { type: String, maxlength: 50 },
   },
@@ -36,7 +36,7 @@ const questionSchema = new Schema(
   {
     questionId: { type: String, required: true, unique: true, maxlength: 20 },
     options: { type: [String], default: [] },
-    correctAnswer: { type: String, required: true }, // "correctionAnswer" → "correctAnswer"
+    correctAnswer: { type: String, required: true },
     explanation: { type: String },
     difficulty: { type: String, enum: ["easy", "medium", "hard"], required: true },
   },
@@ -47,12 +47,12 @@ const questionSchema = new Schema(
 const taskSchema = new Schema(
   {
     taskId: { type: String, required: true, unique: true, maxlength: 20 },
-    courseId: { type: String, ref: "Course", required: true, maxlength: 20 },
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true },
     title: { type: String, required: true, maxlength: 100 },
     description: { type: String, maxlength: 1000 },
     dueDate: { type: Date },
     type: { type: String, enum: ["Quiz", "Homework"], required: true },
-    questions: [{ type: String, ref: "Question" }], // array of questionId
+    questions: [{ type: String, ref: "Question" }],
   },
   { timestamps: true }
 );
@@ -60,34 +60,51 @@ const taskSchema = new Schema(
 /** TaskRecord (attempt / result) */
 const taskRecordSchema = new Schema(
   {
-    userId: { type: String, ref: "User", required: true, maxlength: 20 },
-    taskId: { type: String, ref: "Task", required: true, maxlength: 20 },
-
-    // per-question answers for that task attempt
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    taskId: { type: Schema.Types.ObjectId, ref: "Task", required: true },
     responses: [
       {
-        questionId: { type: String, ref: "Question", required: true, maxlength: 20 },
+        questionId: { type: Schema.Types.ObjectId, ref: "Question", required: true },
         selectedAnswer: { type: String, required: true },
         isCorrect: { type: Boolean, required: true },
         answeredAt: { type: Date, default: Date.now },
       },
     ],
-
-    // totals
     score: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
+
+// hash password before saving user
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) {
+    return;
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// macth password method using bcrypt
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+
 // Helpful indexes (common queries)
 taskSchema.index({ courseId: 1, dueDate: 1 });
 taskRecordSchema.index({ userId: 1, taskId: 1 });
 
-// Export models
-module.exports = {
-  User: mongoose.model("User", userSchema),
-  Course: mongoose.model("Course", courseSchema),
-  Task: mongoose.model("Task", taskSchema),
-  Question: mongoose.model("Question", questionSchema),
-  TaskRecord: mongoose.model("TaskRecord", taskRecordSchema),
+export const User = mongoose.models.User || mongoose.model("User", userSchema);
+export const Course = mongoose.models.Course || mongoose.model("Course", courseSchema);
+export const Task = mongoose.models.Task || mongoose.model("Task", taskSchema);
+export const Question = mongoose.models.Question || mongoose.model("Question", questionSchema);
+export const TaskRecord = mongoose.models.TaskRecord || mongoose.model("TaskRecord", taskRecordSchema);
+
+export default {
+  User,
+  Course,
+  Task,
+  Question,
+  TaskRecord,
 };
