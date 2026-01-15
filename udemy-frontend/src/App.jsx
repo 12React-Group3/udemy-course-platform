@@ -6,6 +6,7 @@ import CoursesPage from "./pages/CoursesPage";
 import TasksPage from "./pages/TasksPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminPage from "./pages/AdminPage";
+import RequireAuth from "./auth/RequireAuth";
 
 export default function App() {
   return (
@@ -16,7 +17,13 @@ export default function App() {
         {/* <Route path="/register" element={<RegisterPage />} /> */}
 
         {/* Layout (authenticated pages) */}
-        <Route element={<AppLayout />}>
+        <Route
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        >
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/courses" element={<CoursesPage />} />
