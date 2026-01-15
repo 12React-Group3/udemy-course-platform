@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { isAdmin, logout } from "../auth/authStore";
 import './Sidebar.css';
 
@@ -15,6 +15,16 @@ const adminItems = [
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }) {
     const showAdmin = isAdmin();
+
+    const navigate = useNavigate();
+
+    function handleLogout() {
+        logout();        // clears localStorage auth
+        onClose?.();     // closes mobile drawer if open
+        navigate("/login", { replace: true }); // replace prevents back button returning to protected page
+    }
+
+
     return (
         <>
             {/* Mobile overlay */}
@@ -83,14 +93,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
 
                 {!collapsed && (
                     <div className="sidebar-footer">
-                        <button
-                            className="sidebar-logout"
-                            type="button"
-                            onClick={() => {
-                                logout();
-                                onClose?.(); // closes mobile drawer if open (safe no-op on desktop)
-                            }}
-                        >
+                        <button className="sidebar-logout" type="button" onClick={handleLogout}>
                             Logout
                         </button>
                     </div>
