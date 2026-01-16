@@ -1,17 +1,15 @@
-import api from "./api";
+// src/api/courses.js
+import apiClient from "./apiClient";
+import { API_PATHS } from "./apiPaths";
 
-export async function fetchCourseById(courseId) {
-  const { data } = await api.get(`/courses/${encodeURIComponent(courseId)}`);
-  return data; // { success, data: course }
+export function fetchAllCourses() {
+    return apiClient.get(API_PATHS.COURSES.GET_ALL);
 }
 
-export async function createCourse(courseData) {
-  const { data } = await api.post("/courses", courseData);
-  return data;
+export function fetchCourseById(courseId) {
+    return apiClient.get(API_PATHS.COURSES.GET_BY_ID(courseId));
 }
 
-export async function fetchAllCourses() {
-  const { data } = await api.get("/courses");
-  return data;
+export function createCourse(courseData) {
+    return apiClient.post(API_PATHS.COURSES.CREATE, courseData);
 }
-
