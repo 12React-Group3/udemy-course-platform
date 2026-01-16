@@ -3,6 +3,8 @@ import CoursePage from "../pages/Course/CoursePage";
 import AddCourse from "../pages/Course/AddCourse";
 import AllCourses from "../pages/Course/AllCourses";
 import ProfilePage from "../pages/Profile/ProfilePage"
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
 
 export default function AppRoutes() {
   return (
