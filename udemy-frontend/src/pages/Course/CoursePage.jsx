@@ -20,11 +20,11 @@ export default function CoursePage() {
         setErr("");
 
         const res = await fetchCourseById(courseId);
-        if (!res?.success) throw new Error(res?.message || "Failed to load course");
+        if (!res.data?.success) throw new Error(res.data?.message || "Failed to load course");
 
-        if (!cancelled) setCourse(res.data);
+        if (!cancelled) setCourse(res.data.data);
       } catch (e) {
-        if (!cancelled) setErr(e?.message || "Something went wrong");
+        if (!cancelled) setErr(e.response?.data?.error || e?.message || "Something went wrong");
       } finally {
         if (!cancelled) setLoading(false);
       }

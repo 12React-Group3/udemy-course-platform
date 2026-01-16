@@ -14,10 +14,10 @@ export default function AllCourses() {
       try {
         setLoading(true);
         const res = await fetchAllCourses();
-        if (!res.success) throw new Error(res.message || "Failed to load courses");
-        setCourses(res.data);
+        if (!res.data.success) throw new Error(res.data.message || "Failed to load courses");
+        setCourses(res.data.data);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.error || err.message || "Failed to load courses");
       } finally {
         setLoading(false);
       }
