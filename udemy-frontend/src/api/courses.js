@@ -14,3 +14,4 @@ export async function fetchAllCourses() {
   const { data } = await api.get("/courses");
   return data;
 }
+

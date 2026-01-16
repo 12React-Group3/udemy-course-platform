@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import { User } from '../models/schema.js';
 
 
 const protect = async (req, res, next) => {
@@ -23,9 +23,13 @@ const protect = async (req, res, next) => {
             next();
         } catch (error) {
             console.error("Auth middleware error:", error.message);
-            if (error.name === 'JsonWebTokenError') {
-                return res.status(401).json({ success: false, error: 'Token expired', statusCode: 401 });
+            if (error.name === "TokenExpiredError") {
+                return res.status(401).json({ success: false, error: "Token expired", statusCode: 401 });
             }
+            if (error.name === "JsonWebTokenError") {
+                return res.status(401).json({ success: false, error: "Invalid token", statusCode: 401 });
+            }
+
             
             return res.status(401).json({ success: false, error: 'Not authorized, token failed', statusCode: 401 });
         }

@@ -19,14 +19,19 @@ const userSchema = new Schema(
 /** Course */
 const courseSchema = new Schema(
   {
-    courseId: { type: String, required: true, unique: true, maxlength: 20 },
-    title: { type: String, required: true, maxlength: 100 },
-    description: { type: String, maxlength: 1000 },
-    videoURL: { type: String }, // TEXT in SQL → String in Mongo
-    instructor: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    students: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
+    courseId: { type: String, required: true, unique: true, maxlength: 20, trim: true },
+    title: { type: String, required: true, maxlength: 100, trim: true },
+    description: { type: String, maxlength: 1000, default: "" },
+    videoURL: { type: String, default: "" },
+
+    // simple string for MVP
+    instructor: { type: String, required: true, maxlength: 20, trim: true },
+
+    // start empty
+    students: { type: [String], default: [] },
+
     createdAt: { type: Date, default: Date.now },
-    courseTag: { type: String, maxlength: 50 },
+    courseTag: { type: String, maxlength: 50, default: "", trim: true },
   },
   { timestamps: false }
 );
