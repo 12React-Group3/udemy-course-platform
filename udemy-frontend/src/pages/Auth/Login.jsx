@@ -1,7 +1,7 @@
 //  this is the login jsx file for login page
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../../api/auth';
 import AuthFooter from './AuthFooter';
 
 const Login = () => {
@@ -13,12 +13,12 @@ const Login = () => {
         e.preventDefault();
         setError('');
         try {
-            const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+            const response = await login(email, password);
             console.log('Login successful:', response.data);
             // Save token to localStorage
-            localStorage.setItem('token', response.data.data.token);
-            // Redirect to dashboard or home page
-            navigate('/dashboard');
+            localStorage.setItem('token', response.data.token);
+            // Redirect to profile page
+            navigate('/profile');
         } catch (err) {
             console.error('Login error:', err.response ? err.response.data : err.message);
             setError(err.response && err.response.data ? err.response.data.error : 'Login failed. Please try again.');

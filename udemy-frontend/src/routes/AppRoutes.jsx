@@ -5,18 +5,44 @@ import AllCourses from "../pages/Course/AllCourses";
 import ProfilePage from "../pages/Profile/ProfilePage"
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
+      {/* Public routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/courses" element={<AllCourses />} />
-      <Route path="/courses/:courseId" element={<CoursePage />} />
-      <Route path="/add-course" element={<AddCourse />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-      <Route path="/profile" element={<ProfilePage />} />
+
+      {/* Protected routes */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <AllCourses />
+        </ProtectedRoute>
+      } />
+      <Route path="/courses" element={
+        <ProtectedRoute>
+          <AllCourses />
+        </ProtectedRoute>
+      } />
+      <Route path="/courses/:courseId" element={
+        <ProtectedRoute>
+          <CoursePage />
+        </ProtectedRoute>
+      } />
+      <Route path="/add-course" element={
+        <ProtectedRoute>
+          <AddCourse />
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <ProfilePage />
+        </ProtectedRoute>
+      } />
+
+      {/* Catch-all redirect */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

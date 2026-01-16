@@ -1,10 +1,23 @@
 // src/api/profile.js
-import api from "./api";
+import axios from "axios";
+import { API_PATHS } from "./apiPaths";
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export function getProfile() {
-  return api.get("/auth/profile");     
+  return axios.get(API_PATHS.AUTH.PROFILE, {
+    headers: getAuthHeader(),
+  });
 }
 
 export function changePassword(payload) {
-  return api.put("/auth/change-password", payload);
+  return axios.put(API_PATHS.AUTH.CHANGE_PASSWORD, payload, {
+    headers: {
+      ...getAuthHeader(),
+      "Content-Type": "application/json",
+    },
+  });
 }
