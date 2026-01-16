@@ -27,7 +27,7 @@ export default function AddCourse() {
     setMessage("");
 
     if (!form.courseId || !form.title || !form.instructor) {
-      setMessage("courseId, title, and instructor are required");
+      setMessage("Course ID, title, and instructor are required.");
       return;
     }
 
@@ -39,53 +39,52 @@ export default function AddCourse() {
         throw new Error(res.message || "Create failed");
       }
 
-      setMessage("✅ Course created successfully!");
+      setMessage("Course created successfully.");
 
-      // optional: redirect to CoursePage
       setTimeout(() => {
         navigate(`/courses/${form.courseId}`);
       }, 800);
     } catch (err) {
-      setMessage(`❌ ${err.message}`);
+      setMessage(err.message || "Failed to create course.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 600, margin: "0 auto" }}>
-      <h1>Add Course</h1>
+    <div className="max-w-xl mx-auto px-6 py-10">
+      <h1 className="text-2xl font-bold mb-6">Add Course</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <input
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
           name="courseId"
           placeholder="Course ID (e.g. CS101)"
           value={form.courseId}
           onChange={handleChange}
         />
 
-        <input
+        <Input
           name="title"
-          placeholder="Title"
+          placeholder="Course title"
           value={form.title}
           onChange={handleChange}
         />
 
-        <input
+        <Input
           name="instructor"
           placeholder="Instructor"
           value={form.instructor}
           onChange={handleChange}
         />
 
-        <input
+        <Input
           name="courseTag"
           placeholder="Tag (optional)"
           value={form.courseTag}
           onChange={handleChange}
         />
 
-        <input
+        <Input
           name="videoURL"
           placeholder="Video URL (YouTube or mp4)"
           value={form.videoURL}
@@ -94,18 +93,43 @@ export default function AddCourse() {
 
         <textarea
           name="description"
-          placeholder="Description"
+          placeholder="Course description"
           rows={4}
           value={form.description}
           onChange={handleChange}
+          className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
 
-        <button disabled={loading}>
+        <button
+          disabled={loading}
+          className="w-full rounded-lg bg-blue-600 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        >
           {loading ? "Creating..." : "Create Course"}
         </button>
 
-        {message && <p>{message}</p>}
+        {message && (
+          <p
+            className={`text-sm ${
+              message.toLowerCase().includes("success")
+                ? "text-green-600"
+                : "text-red-500"
+            }`}
+          >
+            {message}
+          </p>
+        )}
       </form>
     </div>
+  );
+}
+
+/* ---------- small reusable input ---------- */
+
+function Input(props) {
+  return (
+    <input
+      {...props}
+      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+    />
   );
 }

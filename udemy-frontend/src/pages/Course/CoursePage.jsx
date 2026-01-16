@@ -34,57 +34,83 @@ export default function CoursePage() {
     };
   }, [courseId]);
 
-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
+  /* ---------- states ---------- */
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20 text-gray-500">
+        Loading course…
+      </div>
+    );
+  }
 
   if (err) {
     return (
-      <div style={{ padding: 16 }}>
-        <p style={{ color: "crimson" }}>Error: {err}</p>
-        <Link to="/">Back</Link>
+      <div className="max-w-3xl mx-auto p-6">
+        <p className="text-red-500 mb-4">Error: {err}</p>
+        <Link to="/courses" className="text-blue-600 hover:underline">
+          ← Back to courses
+        </Link>
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div style={{ padding: 16 }}>
-        <p>Course not found.</p>
-        <Link to="/">Back</Link>
+      <div className="max-w-3xl mx-auto p-6">
+        <p className="text-gray-600 mb-4">Course not found.</p>
+        <Link to="/courses" className="text-blue-600 hover:underline">
+          ← Back to courses
+        </Link>
       </div>
     );
   }
 
+  /* ---------- main ---------- */
+
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
-      <Link to="/courses" style={{ display: "inline-block", marginBottom: 12 }}>
-        ← Back
+    <div className="max-w-5xl mx-auto px-6 py-8">
+      {/* back */}
+      <Link
+        to="/courses"
+        className="inline-block mb-6 text-sm text-blue-600 hover:underline"
+      >
+        ← Back to courses
       </Link>
 
-      <h1 style={{ margin: "6px 0" }}>{course.title}</h1>
-      <div style={{ opacity: 0.8, marginBottom: 12 }}>
-        <span>CourseId: {course.courseId}</span>
-        {" · "}
-        <span>Instructor: {course.instructor}</span>
-        {course.courseTag ? (
-          <>
-            {" · "}
-            <span>Tag: {course.courseTag}</span>
-          </>
-        ) : null}
+      {/* header */}
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        {course.title}
+      </h1>
+
+      <div className="flex flex-wrap gap-3 text-sm text-gray-500 mb-6">
+        <span>Course ID: {course.courseId}</span>
+        <span>• Instructor: {course.instructor}</span>
+        {course.courseTag && (
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">
+            {course.courseTag}
+          </span>
+        )}
       </div>
 
-      {course.description ? (
-        <p style={{ lineHeight: 1.6 }}>{course.description}</p>
-      ) : (
-        <p style={{ opacity: 0.8 }}>No description yet.</p>
-      )}
+      {/* description */}
+      <div className="mb-10">
+        {course.description ? (
+          <p className="text-gray-700 leading-relaxed">
+            {course.description}
+          </p>
+        ) : (
+          <p className="text-gray-400 italic">No description yet.</p>
+        )}
+      </div>
 
-      <div style={{ marginTop: 18 }}>
-        <h2 style={{ marginBottom: 10 }}>Course Video</h2>
+      {/* video */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Course Video</h2>
 
         {!course.videoURL ? (
-          <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-            No videoURL yet.
+          <div className="rounded-lg border border-dashed border-gray-300 p-6 text-gray-500">
+            No video available yet.
           </div>
         ) : (
           <VideoPlayer url={course.videoURL} />
@@ -94,27 +120,19 @@ export default function CoursePage() {
   );
 }
 
+/* ---------- Video ---------- */
+
 function VideoPlayer({ url }) {
   const isYoutube = /youtube\.com|youtu\.be/.test(url);
 
-  // Simple approach for your 1-week project:
-  // - If it’s YouTube, embed
-  // - Otherwise use HTML5 <video> (works if URL is a direct .mp4 etc.)
   if (isYoutube) {
     const embedUrl = toYoutubeEmbed(url);
     return (
-      <div style={{ position: "relative", paddingTop: "56.25%" }}>
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border">
         <iframe
           src={embedUrl}
           title="Course video"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            border: 0,
-            borderRadius: 10,
-          }}
+          className="absolute inset-0 h-full w-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
@@ -126,29 +144,25 @@ function VideoPlayer({ url }) {
     <video
       src={url}
       controls
-      style={{ width: "100%", borderRadius: 10, border: "1px solid #ddd" }}
+      className="w-full rounded-xl border"
     />
   );
 }
 
+/* ---------- utils ---------- */
+
 function toYoutubeEmbed(url) {
-  // Handles:
-  // https://www.youtube.com/watch?v=VIDEOID
-  // https://youtu.be/VIDEOID
   try {
     const u = new URL(url);
 
-    // youtu.be/VIDEOID
     if (u.hostname.includes("youtu.be")) {
       const id = u.pathname.replace("/", "");
       return `https://www.youtube.com/embed/${id}`;
     }
 
-    // youtube.com/watch?v=VIDEOID
     const id = u.searchParams.get("v");
     if (id) return `https://www.youtube.com/embed/${id}`;
 
-    // already embed or other formats
     return url;
   } catch {
     return url;
