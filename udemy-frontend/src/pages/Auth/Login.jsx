@@ -25,7 +25,7 @@ const Login = () => {
     };
     return (
         <div className='min-h-screen flex items-center justify-center bg-gray-100 min-w-screen'>
-            <div className="login-container m-4 display-grid  border w-full sm:max-w-lg rounded-2xl p-16 box-shadow-light bg-white l">
+            <div className="login-container m-4 display-grid   w-full sm:max-w-lg rounded-2xl p-16 shadow-md bg-white l">
                 <h2 className="font-bold text-2xl ">Welcome Back</h2>
                 <h3 className="text-gray-600 mb-6">Login to your account, kick off your today learning</h3>
                 {error && <p className="error-message">{error}</p>}
