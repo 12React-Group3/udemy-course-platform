@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import AuthFooter from './AuthFooter';
+import AuthAvatar from './AuthAvatar';
 
 const Register = () => {
     const [userName, setUserName] = useState('');
@@ -65,6 +66,9 @@ const Register = () => {
                 <h3 className="text-gray-600 mb-6">Join us and start your learning journey</h3>
                 {error && <p className="text-red-500 mb-4">{error}</p>}
                 <form onSubmit={handleSubmit} encType="multipart/form-data">
+                    {/* Avatar */}
+                    <AuthAvatar avatar={avatar} setAvatar={setAvatar} />
+
                     {/* Username field */}
                     <div className="mb-4">
                         <label className="block text-gray-700 mb-1">Username</label>
@@ -151,24 +155,6 @@ const Register = () => {
                             >
                                 Tutor
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Avatar field */}
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-1">Avatar</label>
-                        <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-                                </svg>
-                            </span>
-                            <input
-                                className="border border-gray-300 rounded-lg py-2 pl-10 pr-3 w-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-brand file:text-white file:cursor-pointer"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => setAvatar(e.target.files[0])}
-                            />
                         </div>
                     </div>
 
