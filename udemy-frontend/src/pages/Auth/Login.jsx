@@ -21,33 +21,35 @@ const Login = () => {
         } catch (err) {
             console.error('Login error:', err.response ? err.response.data : err.message);
             setError(err.response && err.response.data ? err.response.data.error : 'Login failed. Please try again.');
-        }   
+        }
     };
     return (
-        <div className="login-container">
-            <h2>Login</h2>
-            {error && <p className="error-message">{error}</p>}
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label>Email:</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Password:</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                </div>
-                <button type="submit">Login</button>
-            </form>
+        <div className='min-h-screen flex items-center justify-center bg-gray-100 min-w-screen'>
+            <div className="login-container m-4 display-grid  border-2 w-full sm:w-1/2 rounded-8 p-16 box-shadow-light bg-white">
+                <h2 className="font-bold text-2xl ">Login</h2>
+                {error && <p className="error-message">{error}</p>}
+                <form onSubmit={handleSubmit}>
+                    <div>
+                        <label>Email:</label>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label>Password:</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
         </div>
     );
 };
