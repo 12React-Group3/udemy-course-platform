@@ -3,7 +3,8 @@ import { body } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { login, register } from '../controllers/authController.js';
+import { login, register, getProfile, updateProfile, changePassword } from '../controllers/authController.js';
+import protect from '../middleware/auth.js';
 
 
 const router = express.Router();
@@ -47,7 +48,10 @@ const registerValidation=[
     body('role').isIn(['admin','learner']).withMessage('Role must be either admin or learner')
 ];
 
-// publich routes
+// public routes
 router.post("/login",loginValidation,login);
 router.post("/register",upload.single('avatar'),registerValidation,register);
+router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
+router.put("/change-password", protect, changePassword);
 export default router;

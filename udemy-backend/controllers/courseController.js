@@ -1,4 +1,4 @@
-import Course from "../models/Course.js";
+import { Course } from "../models/schema.js";
 
 /**
  * POST /api/courses
@@ -45,9 +45,11 @@ export async function createCourse(req, res) {
       data: course
     });
   } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: "Server error"
+    console.error("createCourse error:", err); // ✅ see it in terminal
+  return res.status(500).json({
+    success: false,
+    message: err.message,          // ✅ show message
+    // stack: err.stack,           // optional (dev only)
     });
   }
 }
