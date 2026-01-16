@@ -15,13 +15,20 @@ const Login = () => {
         try {
             const response = await login(email, password);
             console.log('Login successful:', response.data);
+
+            // Get token from response
+            const token = response.data?.token;
+            if (!token) {
+                throw new Error('No token received from server');
+            }
+
             // Save token to localStorage
-            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('token', token);
             // Redirect to profile page
             navigate('/profile');
         } catch (err) {
             console.error('Login error:', err.response ? err.response.data : err.message);
-            setError(err.response && err.response.data ? err.response.data.error : 'Login failed. Please try again.');
+            setError(err.response?.data?.error || err.message || 'Login failed. Please try again.');
         }
     };
     return (
