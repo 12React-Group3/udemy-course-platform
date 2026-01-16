@@ -1,7 +1,7 @@
 //  this is the page for registering a new user
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { register } from '../../api/auth';
 import AuthFooter from './AuthFooter';
 import AuthAvatar from './AuthAvatar';
 
@@ -25,19 +25,23 @@ const Register = () => {
             if (avatar) {
                 formData.append('avatar', avatar);
             }
-            const response = await axios.post('http://localhost:5000/api/auth/register', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
+
+            const response = await register(formData);
             console.log('Registration successful:', response.data);
+
+            // Get token from response
+            const token = response.data?.data?.token;
+            if (!token) {
+                throw new Error('No token received from server');
+            }
+
             // Save token to localStorage
-            localStorage.setItem('token', response.data.data.token);
-            // Redirect to dashboard or home page
-            navigate('/dashboard');
+            localStorage.setItem('token', token);
+            // Redirect to profile page
+            navigate('/profile');
         } catch (err) {
             console.error('Registration error:', err.response ? err.response.data : err.message);
-            setError(err.response && err.response.data ? err.response.data.error : 'Registration failed. Please try again.');
+            setError(err.response?.data?.error || err.message || 'Registration failed. Please try again.');
         }
     };
     return (

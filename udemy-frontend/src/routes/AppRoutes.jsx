@@ -5,6 +5,7 @@ import AllCourses from "../pages/Course/AllCourses";
 import ProfilePage from "../pages/Profile/ProfilePage"
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
+import Logout from "../pages/Auth/Logout";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 export default function AppRoutes() {
@@ -13,6 +14,7 @@ export default function AppRoutes() {
       {/* Public routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/logout" element={<Logout />} />
 
       {/* Protected routes */}
       <Route path="/" element={
