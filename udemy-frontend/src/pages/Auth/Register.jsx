@@ -134,7 +134,7 @@ const Register = () => {
                                 onClick={() => setRole('learner')}
                                 className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
                                     role === 'learner'
-                                        ? '!bg-brand text-white'
+                                        ? 'bg-brand! text-white'
                                         : 'bg-white text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
@@ -145,7 +145,7 @@ const Register = () => {
                                 onClick={() => setRole('tutor')}
                                 className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
                                     role === 'tutor'
-                                        ? '!bg-brand text-white'
+                                        ? 'bg-brand! text-white'
                                         : 'bg-white text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
@@ -172,7 +172,7 @@ const Register = () => {
                         </div>
                     </div>
 
-                    <button className='border rounded-lg p-2 w-full mb-4 !bg-brand text-white hover:opacity-90 transition-opacity' type="submit">Register</button>
+                    <button className='border rounded-lg p-2 w-full mb-4 bg-brand! text-white hover:opacity-90 transition-opacity' type="submit">Register</button>
                     <h3 className="text-center">Already have an account? <a href="/login" className="text-brand! hover:underline">Login here</a></h3>
                 </form>
             </div>
