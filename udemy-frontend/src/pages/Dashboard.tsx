@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, ChangeEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { fetchAllCourses } from '../api/courses';
 import Topbar from '../components/Topbar';
 import './Dashboard.css';
+import type { ApiCourse, Course, TimeFilterValue, TimeFilterOption, ApiResponse } from '../types';
 
-const TIME_FILTERS = [
+const TIME_FILTERS: TimeFilterOption[] = [
   { label: 'All Time', value: 'all' },
   { label: 'Last Week', value: 'week' },
   { label: 'Last Month', value: 'month' },
@@ -12,7 +13,7 @@ const TIME_FILTERS = [
 ];
 
 // Helper function to extract YouTube video thumbnail from URL
-function getVideoThumbnail(videoURL) {
+function getVideoThumbnail(videoURL: string | undefined): string | null {
   if (!videoURL) return null;
   
   try {
@@ -40,7 +41,7 @@ function getVideoThumbnail(videoURL) {
 }
 
 // Helper function to transform backend course data to frontend format
-function transformCourse(course) {
+function transformCourse(course: ApiCourse): Course {
   const thumbnail = getVideoThumbnail(course.videoURL) || 
     `https://picsum.photos/seed/${course.courseId}/300/170`;
   
@@ -61,7 +62,7 @@ function transformCourse(course) {
 }
 
 // Helper function to filter courses by time based on createdAt
-function filterByTime(courses, timeFilter) {
+function filterByTime(courses: Course[], timeFilter: TimeFilterValue): Course[] {
   if (timeFilter === 'all') return courses;
   
   const now = new Date();
@@ -87,8 +88,13 @@ function filterByTime(courses, timeFilter) {
   });
 }
 
+// Course Card Component Props
+interface CourseCardProps {
+  course: Course;
+}
+
 // Course Card Component
-function CourseCard({ course }) {
+function CourseCard({ course }: CourseCardProps) {
   return (
     <Link to={`/courses/${course.id}`} className="course-card">
       <div className="course-thumbnail">
@@ -105,22 +111,22 @@ function CourseCard({ course }) {
 // Main Dashboard Component
 function Dashboard() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [activeCategory, setActiveCategory] = useState('');
-  const [timeFilter, setTimeFilter] = useState('all');
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-  const carouselRef = useRef(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [timeFilter, setTimeFilter] = useState<TimeFilterValue>('all');
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(true);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   // Fetch courses from API on mount
   useEffect(() => {
-    async function loadCourses() {
+    async function loadCourses(): Promise<void> {
       try {
         setLoading(true);
         setError('');
-        const res = await fetchAllCourses();
+        const res = await fetchAllCourses() as { data: ApiResponse<ApiCourse[]> };
         if (!res.data.success) {
           throw new Error(res.data.message || 'Failed to load courses');
         }
@@ -128,7 +134,7 @@ function Dashboard() {
         const transformedCourses = res.data.data.map(transformCourse);
         setCourses(transformedCourses);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
@@ -137,7 +143,7 @@ function Dashboard() {
   }, []);
 
   // Derive unique categories from courses
-  const categories = useMemo(() => {
+  const categories = useMemo<string[]>(() => {
     const uniqueCategories = [...new Set(courses.map(course => course.category))];
     return uniqueCategories.sort();
   }, [courses]);
@@ -150,7 +156,7 @@ function Dashboard() {
   }, [categories, activeCategory]);
 
   // Filter courses based on category and time
-  const filteredCourses = useMemo(() => {
+  const filteredCourses = useMemo<Course[]>(() => {
     if (!activeCategory) return [];
     return filterByTime(
       courses.filter(course => course.category === activeCategory),
@@ -159,7 +165,7 @@ function Dashboard() {
   }, [courses, activeCategory, timeFilter]);
 
   // Check scroll position to show/hide arrows
-  const checkScrollPosition = () => {
+  const checkScrollPosition = (): void => {
     if (carouselRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
       setCanScrollLeft(scrollLeft > 0);
@@ -183,18 +189,22 @@ function Dashboard() {
     }
   }, [activeCategory]);
 
-  const scrollLeft = () => {
+  const scrollLeft = (): void => {
     if (carouselRef.current) {
       const scrollAmount = carouselRef.current.clientWidth * 0.8;
       carouselRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
     }
   };
 
-  const scrollRight = () => {
+  const scrollRight = (): void => {
     if (carouselRef.current) {
       const scrollAmount = carouselRef.current.clientWidth * 0.8;
       carouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
+  };
+
+  const handleTimeFilterChange = (e: ChangeEvent<HTMLSelectElement>): void => {
+    setTimeFilter(e.target.value as TimeFilterValue);
   };
 
   // Loading state
@@ -263,7 +273,7 @@ function Dashboard() {
           <div className="time-filter">
             <select
               value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
+              onChange={handleTimeFilterChange}
               className="time-select"
             >
               {TIME_FILTERS.map(filter => (
