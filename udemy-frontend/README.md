@@ -245,7 +245,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 | `/login` | Login | No |
 | `/register` | Register | No |
 | `/logout` | Logout | No |
-| `/` | AllCourses | Yes |
+| `/` | Dashboard | Yes |
 | `/courses` | AllCourses | Yes |
 | `/courses/:id` | CoursePage | Yes |
 | `/add-course` | AddCourse | Yes |
