@@ -24,8 +24,8 @@ const Login = () => {
 
             // Save token to localStorage
             localStorage.setItem('token', token);
-            // Redirect to profile page
-            navigate('/profile');
+            // Redirect to home page
+            navigate('/');
         } catch (err) {
             console.error('Login error:', err.response ? err.response.data : err.message);
             setError(err.response?.data?.error || err.message || 'Login failed. Please try again.');

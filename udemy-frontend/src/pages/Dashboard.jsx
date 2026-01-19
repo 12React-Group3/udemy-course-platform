@@ -121,11 +121,11 @@ function Dashboard() {
         setLoading(true);
         setError('');
         const res = await fetchAllCourses();
-        if (!res.success) {
-          throw new Error(res.message || 'Failed to load courses');
+        if (!res.data.success) {
+          throw new Error(res.data.message || 'Failed to load courses');
         }
         // Transform backend data to frontend format
-        const transformedCourses = res.data.map(transformCourse);
+        const transformedCourses = res.data.data.map(transformCourse);
         setCourses(transformedCourses);
       } catch (err) {
         setError(err.message);

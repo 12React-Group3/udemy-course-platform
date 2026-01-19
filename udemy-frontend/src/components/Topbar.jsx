@@ -8,21 +8,18 @@ import { fetchAllCourses } from '../api/courses'
  * Topbar
  * 
  * Props:
- * - isLoggedIn: boolean - whether the user is logged in (controlled by auth module)
- * - user: object - user info { userName, email, ... }
  * - onLogout: function - logout callback
  * - onLogoClick: function - click logo callback
  * - onToggleSidebar: function - toggle sidebar callback
  */
 function Topbar({ 
-  isLoggedIn = false, 
-  user = null,
   onLogout,
   onLogoClick,
   onToggleSidebar 
 }) {
   const navigate = useNavigate()
 
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'))
   const [searchQuery, setSearchQuery] = useState('')
   const [allCourses, setAllCourses] = useState([])
   const [searchResults, setSearchResults] = useState([])
@@ -103,10 +100,12 @@ function Topbar({
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('token')  // clear token
+    setIsLoggedIn(false)
     if (onLogout) {
       onLogout()
     }
-    navigate('/')
+    navigate('/login')
   }
 
   const showDropdown = isSearchFocused && searchQuery.trim() !== ''

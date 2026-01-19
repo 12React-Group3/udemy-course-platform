@@ -7,6 +7,7 @@ import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import Logout from "../pages/Auth/Logout";
 import ProtectedRoute from "../components/ProtectedRoute";
+import Dashboard from "../pages/Dashboard";
 
 export default function AppRoutes() {
   return (
@@ -19,7 +20,7 @@ export default function AppRoutes() {
       {/* Protected routes */}
       <Route path="/" element={
         <ProtectedRoute>
-          <AllCourses />
+          <Dashboard />
         </ProtectedRoute>
       } />
       <Route path="/courses" element={
