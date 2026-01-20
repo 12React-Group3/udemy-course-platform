@@ -1,13 +1,15 @@
+// src/pages/Course/CoursePage.jsx
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Topbar from "../../components/Topbar";
-import { fetchCourseById } from "../../api/courses";
+import { fetchCourseById, fetchCourseVideoUrl } from "../../api/courses";
 
 export default function CoursePage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
 
   const [course, setCourse] = useState(null);
+  const [videoSrc, setVideoSrc] = useState(""); 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -18,11 +20,21 @@ export default function CoursePage() {
       try {
         setLoading(true);
         setErr("");
+        setVideoSrc("");
 
+        // 1) 先拿 course
         const res = await fetchCourseById(courseId);
         if (!res.data?.success) throw new Error(res.data?.message || "Failed to load course");
 
-        if (!cancelled) setCourse(res.data.data);
+        const c = res.data.data;
+        if (!cancelled) setCourse(c);
+
+        // 2) 再用 videoKey 去拿 presigned GET url
+        if (c?.videoKey) {
+          const v = await fetchCourseVideoUrl(courseId);
+          if (!v.data?.success) throw new Error(v.data?.message || "Failed to get video url");
+          if (!cancelled) setVideoSrc(v.data.data.signedUrl);
+        }
       } catch (e) {
         if (!cancelled) setErr(e.response?.data?.error || e?.message || "Something went wrong");
       } finally {
@@ -86,12 +98,16 @@ export default function CoursePage() {
         <div style={{ marginTop: 18 }}>
           <h2 style={{ marginBottom: 10 }}>Course Video</h2>
 
-          {!course.videoURL ? (
+          {!course.videoKey ? (
             <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-              No videoURL yet.
+              No video uploaded yet.
+            </div>
+          ) : !videoSrc ? (
+            <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+              Loading video...
             </div>
           ) : (
-            <VideoPlayer url={course.videoURL} />
+            <VideoPlayer url={videoSrc} />
           )}
         </div>
       </div>
@@ -100,62 +116,13 @@ export default function CoursePage() {
 }
 
 function VideoPlayer({ url }) {
-  const isYoutube = /youtube\.com|youtu\.be/.test(url);
-
-  // Simple approach for your 1-week project:
-  // - If it’s YouTube, embed
-  // - Otherwise use HTML5 <video> (works if URL is a direct .mp4 etc.)
-  if (isYoutube) {
-    const embedUrl = toYoutubeEmbed(url);
-    return (
-      <div style={{ position: "relative", paddingTop: "56.25%" }}>
-        <iframe
-          src={embedUrl}
-          title="Course video"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            border: 0,
-            borderRadius: 10,
-          }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
-  }
-
   return (
     <video
       src={url}
       controls
+      playsInline
+      preload="metadata"
       style={{ width: "100%", borderRadius: 10, border: "1px solid #ddd" }}
     />
   );
-}
-
-function toYoutubeEmbed(url) {
-  // Handles:
-  // https://www.youtube.com/watch?v=VIDEOID
-  // https://youtu.be/VIDEOID
-  try {
-    const u = new URL(url);
-
-    // youtu.be/VIDEOID
-    if (u.hostname.includes("youtu.be")) {
-      const id = u.pathname.replace("/", "");
-      return `https://www.youtube.com/embed/${id}`;
-    }
-
-    // youtube.com/watch?v=VIDEOID
-    const id = u.searchParams.get("v");
-    if (id) return `https://www.youtube.com/embed/${id}`;
-
-    // already embed or other formats
-    return url;
-  } catch {
-    return url;
-  }
 }
