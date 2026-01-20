@@ -11,6 +11,7 @@ export async function createCourse(req, res) {
       title,
       description,
       videoURL,
+      videoKey,
       instructor,
       courseTag
     } = req.body;
@@ -35,6 +36,7 @@ export async function createCourse(req, res) {
       title,
       description,
       videoURL,
+      videoKey,
       instructor,
       courseTag,
       students: []

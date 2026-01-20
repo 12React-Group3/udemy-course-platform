@@ -12,5 +12,13 @@ export const API_PATHS={
         GET_ALL:`${BASE_URL}/api/courses`,
         CREATE:`${BASE_URL}/api/courses`,
         GET_BY_ID:(courseId)=>`${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
-    }
+    },
+    UPLOADS: {
+    // POST -> { courseId, fileName, contentType }
+    PRESIGN_VIDEO_UPLOAD: `${BASE_URL}/api/uploads/video`,
+
+    // GET -> ?key=...
+    PRESIGN_VIDEO_PLAY: (key) =>
+      `${BASE_URL}/api/uploads/video/play?key=${encodeURIComponent(key)}`,
+  },
 }

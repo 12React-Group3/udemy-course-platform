@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Topbar from "../../components/Topbar";
-import { fetchCourseById } from "../../api/courses";
+import { fetchCourseById, presignVideoPlay } from "../../api/courses";
 
 export default function CoursePage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
 
   const [course, setCourse] = useState(null);
+  const [playUrl, setPlayUrl] = useState(""); // ✅ presigned GET url
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -18,13 +19,24 @@ export default function CoursePage() {
       try {
         setLoading(true);
         setErr("");
+        setPlayUrl("");
 
         const res = await fetchCourseById(courseId);
         if (!res.data?.success) throw new Error(res.data?.message || "Failed to load course");
 
-        if (!cancelled) setCourse(res.data.data);
+        const c = res.data.data;
+        if (cancelled) return;
+
+        setCourse(c);
+
+        // ✅ If S3 videoKey exists, get presigned GET url
+        if (c?.videoKey) {
+          const pr = await presignVideoPlay(c.videoKey);
+          if (!pr.data?.success) throw new Error(pr.data?.message || "Failed to get play URL");
+          if (!cancelled) setPlayUrl(pr.data.data.url);
+        }
       } catch (e) {
-        if (!cancelled) setErr(e.response?.data?.error || e?.message || "Something went wrong");
+        if (!cancelled) setErr(e.response?.data?.message || e?.message || "Something went wrong");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,7 +54,7 @@ export default function CoursePage() {
     return (
       <div style={{ padding: 16 }}>
         <p style={{ color: "crimson" }}>Error: {err}</p>
-        <Link to="/">Back</Link>
+        <Link to="/courses">Back</Link>
       </div>
     );
   }
@@ -51,10 +63,12 @@ export default function CoursePage() {
     return (
       <div style={{ padding: 16 }}>
         <p>Course not found.</p>
-        <Link to="/">Back</Link>
+        <Link to="/courses">Back</Link>
       </div>
     );
   }
+
+  const finalUrl = course.videoURL || playUrl;
 
   return (
     <>
@@ -86,12 +100,12 @@ export default function CoursePage() {
         <div style={{ marginTop: 18 }}>
           <h2 style={{ marginBottom: 10 }}>Course Video</h2>
 
-          {!course.videoURL ? (
+          {!finalUrl ? (
             <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-              No videoURL yet.
+              No video yet.
             </div>
           ) : (
-            <VideoPlayer url={course.videoURL} />
+            <VideoPlayer url={finalUrl} />
           )}
         </div>
       </div>
@@ -102,9 +116,6 @@ export default function CoursePage() {
 function VideoPlayer({ url }) {
   const isYoutube = /youtube\.com|youtu\.be/.test(url);
 
-  // Simple approach for your 1-week project:
-  // - If it’s YouTube, embed
-  // - Otherwise use HTML5 <video> (works if URL is a direct .mp4 etc.)
   if (isYoutube) {
     const embedUrl = toYoutubeEmbed(url);
     return (
@@ -137,23 +148,17 @@ function VideoPlayer({ url }) {
 }
 
 function toYoutubeEmbed(url) {
-  // Handles:
-  // https://www.youtube.com/watch?v=VIDEOID
-  // https://youtu.be/VIDEOID
   try {
     const u = new URL(url);
 
-    // youtu.be/VIDEOID
     if (u.hostname.includes("youtu.be")) {
       const id = u.pathname.replace("/", "");
       return `https://www.youtube.com/embed/${id}`;
     }
 
-    // youtube.com/watch?v=VIDEOID
     const id = u.searchParams.get("v");
     if (id) return `https://www.youtube.com/embed/${id}`;
 
-    // already embed or other formats
     return url;
   } catch {
     return url;

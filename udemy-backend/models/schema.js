@@ -29,7 +29,7 @@ const courseSchema = new Schema(
 
     // start empty
     students: { type: [String], default: [] },
-
+    videoKey: { type: String },
     createdAt: { type: Date, default: Date.now },
     courseTag: { type: String, maxlength: 50, default: "", trim: true },
   },

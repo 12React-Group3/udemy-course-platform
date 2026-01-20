@@ -13,3 +13,17 @@ export function fetchCourseById(courseId) {
 export function createCourse(courseData) {
     return apiClient.post(API_PATHS.COURSES.CREATE, courseData);
 }
+
+// 1️⃣ Ask backend for presigned PUT url
+export function presignVideoUpload({ courseId, fileName, contentType }) {
+  return apiClient.post(API_PATHS.UPLOADS.PRESIGN_VIDEO_UPLOAD, {
+    courseId,
+    fileName,
+    contentType,
+  });
+}
+
+// 2️⃣ Ask backend for presigned GET url (play)
+export function presignVideoPlay(key) {
+  return apiClient.get(API_PATHS.UPLOADS.PRESIGN_VIDEO_PLAY(key));
+}
