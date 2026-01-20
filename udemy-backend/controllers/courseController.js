@@ -1,4 +1,4 @@
-import { Course } from "../models/schema.js";
+import { CourseDB } from "../models/dynamodb.js";
 
 /**
  * POST /api/courses
@@ -22,7 +22,7 @@ export async function createCourse(req, res) {
       });
     }
 
-    const existing = await Course.findOne({ courseId });
+    const existing = await CourseDB.findByCourseId(courseId);
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -30,7 +30,7 @@ export async function createCourse(req, res) {
       });
     }
 
-    const course = await Course.create({
+    const course = await CourseDB.create({
       courseId,
       title,
       description,
@@ -45,11 +45,10 @@ export async function createCourse(req, res) {
       data: course
     });
   } catch (err) {
-    console.error("createCourse error:", err); // ✅ see it in terminal
-  return res.status(500).json({
-    success: false,
-    message: err.message,          // ✅ show message
-    // stack: err.stack,           // optional (dev only)
+    console.error("createCourse error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
     });
   }
 }
@@ -62,7 +61,7 @@ export async function getCourseByCourseId(req, res) {
   try {
     const { courseId } = req.params;
 
-    const course = await Course.findOne({ courseId }).lean();
+    const course = await CourseDB.findByCourseId(courseId);
 
     if (!course) {
       return res.status(404).json({
@@ -89,7 +88,7 @@ export async function getCourseByCourseId(req, res) {
  */
 export async function getAllCourses(req, res) {
   try {
-    const courses = await Course.find().lean();
+    const courses = await CourseDB.findAll();
 
     return res.status(200).json({
       success: true,
