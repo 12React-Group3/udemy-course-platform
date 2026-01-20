@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { User } from '../models/schema.js';
+import { UserDB } from '../models/dynamodb.js';
 
 
 
@@ -22,28 +22,28 @@ export const register = async (req, res, next) => {
 
 
         // check if user already exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await UserDB.findByEmail(email);
         if (existingUser) {
             return res.status(400).json({ success: false, error: 'User already exists with this email', statusCode: 400 });
         }
 
-        // create new user
-        const user = await User.create({
-            userName: userName,
+        // create new user (password is hashed in UserDB.create)
+        const user = await UserDB.create({
+            userName,
             email,
-            password, // TODO: hash password in production
+            password,
             role
         });
 
-        
 
-        const token= generateToken(user._id,user.role);
+
+        const token= generateToken(user._id, user.role);
 
         res.status(201).json({
             success: true,
             data: {
                 user:{
-                    id:user._id,
+                    id: user._id,
                     userName: user.userName,
                     email: user.email,
                     role: user.role,
@@ -68,19 +68,19 @@ export const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
-        // validate imput 
+        // validate input
         if (!email || !password) {
             return res.status(400).json({ success: false, error: 'Please provide email and password', statusCode: 400 });
         }
 
         // check for user existence
-        const user = await User.findOne({ email });
+        const user = await UserDB.findByEmail(email);
         if (!user) {
             return res.status(401).json({ success: false, error: 'Invalid email or password', statusCode: 401 });
         }
 
         // check if password matches
-        const isMatch = await user.matchPassword(password);
+        const isMatch = await UserDB.matchPassword(user, password);
         if (!isMatch) {
             return res.status(401).json({ success: false, error: 'Invalid email or password', statusCode: 401 });
         }
@@ -113,13 +113,22 @@ export const login = async (req, res, next) => {
 // @access  Private
 export const getProfile = async (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
-        
+        const user = await UserDB.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found', statusCode: 404 });
+        }
 
         res.status(200).json({
             success: true,
             data: {
-                user,
+                user: {
+                    id: user._id,
+                    userName: user.userName,
+                    email: user.email,
+                    role: user.role,
+                    profileImage: user.profileImage || null,
+                },
                 userName: user.userName,
                 email: user.email,
                 role: user.role,
@@ -140,17 +149,18 @@ export const getProfile = async (req, res, next) => {
 export const updateProfile = async (req, res, next) => {
     try {
         const { userName, email, profileImage } = req.body;
-        const user = await User.findById(req.user.id);
 
-        if(userName) user.userName = userName;
-        if(email) user.email = email;
-        if(profileImage) user.profileImage = profileImage;
+        const updates = {};
+        if (userName) updates.userName = userName;
+        if (email) updates.email = email;
+        if (profileImage) updates.profileImage = profileImage;
 
-        await user.save();
+        const user = await UserDB.updateProfile(req.user.id, updates);
+
         res.status(200).json({
             success: true,
             data: {
-                id:user._id,
+                id: user._id,
                 userName: user.userName,
                 email: user.email,
                 role: user.role,
@@ -158,7 +168,7 @@ export const updateProfile = async (req, res, next) => {
             },
             message: 'Profile updated successfully',
         });
-    }catch (error) {
+    } catch (error) {
         next(error);
     }
 };
@@ -170,22 +180,25 @@ export const updateProfile = async (req, res, next) => {
 export const changePassword = async (req, res, next) => {
     try {
         const { currentPassword, newPassword } = req.body;
-        
+
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ success: false, error: 'Please provide current and new password', statusCode: 400 });
         }
 
-        const user = await User.findById(req.user.id).select('+password');
+        const user = await UserDB.findById(req.user.id);
 
-        //check current password matches
-        const isMatch = await user.matchPassword(currentPassword);
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found', statusCode: 404 });
+        }
+
+        // check current password matches
+        const isMatch = await UserDB.matchPassword(user, currentPassword);
         if (!isMatch) {
             return res.status(401).json({ success: false, error: 'Current password is incorrect', statusCode: 401 });
         }
 
-        //update to new password
-        user.password = newPassword; // TODO: hash password in production
-        await user.save();
+        // update to new password (hashed in updateProfile)
+        await UserDB.updateProfile(req.user.id, { password: newPassword });
 
         res.status(200).json({
             success: true,
