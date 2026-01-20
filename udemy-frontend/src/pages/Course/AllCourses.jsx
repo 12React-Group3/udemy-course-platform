@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { fetchAllCourses } from "../../api/courses";
-import Topbar from "../../components/Topbar";
 
 export default function AllCourses() {
-  const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,7 +28,6 @@ export default function AllCourses() {
 
   return (
     <>
-      <Topbar onLogoClick={() => navigate("/")} />
       <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
         <h1>All Courses</h1>
 

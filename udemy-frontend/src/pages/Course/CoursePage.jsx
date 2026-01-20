@@ -6,7 +6,6 @@ import { fetchCourseById, fetchCourseVideoUrl } from "../../api/courses";
 
 export default function CoursePage() {
   const { courseId } = useParams();
-  const navigate = useNavigate();
 
   const [course, setCourse] = useState(null);
   const [videoSrc, setVideoSrc] = useState(""); 
@@ -70,7 +69,6 @@ export default function CoursePage() {
 
   return (
     <>
-      <Topbar onLogoClick={() => navigate("/")} />
       <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
         <Link to="/courses" style={{ display: "inline-block", marginBottom: 12 }}>
           ← Back
