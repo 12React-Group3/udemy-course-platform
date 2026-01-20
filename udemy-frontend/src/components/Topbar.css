@@ -12,10 +12,8 @@
 
 /* Main Topbar Container */
 .topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  width: 100%;
   height: var(--topbar-height);
   background-color: var(--topbar-bg);
   box-shadow: 0 2px 4px var(--topbar-shadow);
@@ -234,15 +232,12 @@
   height: 24px;
 }
 
-/* Show burger button only on screens smaller than 900px */
-@media (max-width: 900px) {
+/* Responsive Styles */
+@media (max-width: 768px) {
   .btn-burger {
     display: inline-flex;
   }
-}
 
-/* Responsive Styles */
-@media (max-width: 768px) {
   .topbar {
     padding: 0 16px;
   }
@@ -307,7 +302,58 @@
   }
 }
 
-/* Body offset for fixed topbar */
-body {
-  padding-top: var(--topbar-height);
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--topbar-border);
+  border-radius: 999px;
+  background: var(--topbar-bg);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.topbar-user:hover {
+  background-color: #f7f9fa;
+  border-color: var(--topbar-text-light);
+}
+
+.topbar-avatar,
+.topbar-avatarFallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: 0 0 32px;
+  border: 1px solid var(--topbar-border);
+}
+
+.topbar-avatar {
+  object-fit: cover;
+  display: block;
+}
+
+.topbar-avatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f3f5;
+  color: var(--topbar-text-light);
+}
+
+.topbar-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--topbar-text);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* optional: hide name on very small screens to save space */
+@media (max-width: 576px) {
+  .topbar-username {
+    display: none;
+  }
 }

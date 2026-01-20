@@ -1,0 +1,46 @@
+:root {
+  --app-topbar-height: 64px;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  position: sticky;
+  position: sticky;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  position: relative; 
+}
+
+.app-main {
+  padding-top: var(--app-topbar-height);
+  margin-right: var(--app-sb-width);
+  width: calc(100% - var(--app-sb-width));
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    margin-right: 0;
+    width: 100%;
+  }
+
+  .app-topbar.sb-open::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--sb-border);
+    right: var(--app-sb-width); 
+  }
+}

@@ -1,13 +1,23 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import CoursePage from "../pages/Course/CoursePage";
 import AddCourse from "../pages/Course/AddCourse";
 import AllCourses from "../pages/Course/AllCourses";
-import ProfilePage from "../pages/Profile/ProfilePage"
+import ProfilePage from "../pages/Profile/ProfilePage";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
 import Logout from "../pages/Auth/Logout";
 import ProtectedRoute from "../components/ProtectedRoute";
+import AppLayout from "../components/AppLayout";
+import AdminRoute from "../components/AdminRoute";
 import Dashboard from "../pages/Dashboard";
+import TasksPage from "../pages/Tasks/TasksPage";
+import AdminPage from "../pages/Admin/AdminPage";
+
+function CatchAll() {
+  const token = localStorage.getItem('token');
+  return <Navigate to={token ? '/dashboard' : '/login'} replace />;
+}
 
 export default function AppRoutes() {
   return (
@@ -17,35 +27,42 @@ export default function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/logout" element={<Logout />} />
 
-      {/* Protected routes */}
-      <Route path="/" element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/courses" element={
-        <ProtectedRoute>
-          <AllCourses />
-        </ProtectedRoute>
-      } />
-      <Route path="/courses/:courseId" element={
-        <ProtectedRoute>
-          <CoursePage />
-        </ProtectedRoute>
-      } />
-      <Route path="/add-course" element={
-        <ProtectedRoute>
-          <AddCourse />
-        </ProtectedRoute>
-      } />
-      <Route path="/profile" element={
-        <ProtectedRoute>
-          <ProfilePage />
-        </ProtectedRoute>
-      } />
+      {/* Protected routes live under a shared layout (Topbar + Sidebar) */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        {/* Dashboard */}
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Courses */}
+        <Route path="/courses" element={<AllCourses />} />
+        <Route path="/courses/:courseId" element={<CoursePage />} />
+        <Route path="/add-course" element={<AddCourse />} />
+
+        {/* Tasks (placeholder) */}
+        <Route path="/tasks" element={<TasksPage />} />
+
+        {/* Profile */}
+        <Route path="/profile" element={<ProfilePage />} />
+
+        {/* Admin (placeholder) */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          }
+        />
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<CatchAll />} />
     </Routes>
   );
 }
