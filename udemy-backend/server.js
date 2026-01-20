@@ -35,7 +35,7 @@ async function start() {
     console.log("DYNAMODB_TABLE =", process.env.DYNAMODB_TABLE_NAME);
 
     // Check required DynamoDB environment variables
-    const requiredEnvVars = ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'DYNAMODB_TABLE_NAME'];
+    const requiredEnvVars = ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'DYNAMODB_TABLE_NAME', "AWS_S3_BUCKET_NAME"];
     const missing = requiredEnvVars.filter(v => !process.env[v]);
     if (missing.length > 0) {
       throw new Error(`Missing required environment variables: ${missing.join(', ')}`);

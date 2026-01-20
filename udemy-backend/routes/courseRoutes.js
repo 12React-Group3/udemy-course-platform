@@ -1,19 +1,19 @@
-import { Router } from "express";
+// routes/courseRoutes.js
+import express from "express";
 import {
+  getAllCourses,
   createCourse,
+  presignVideoUpload,
+  getCourseVideoUrl,
   getCourseByCourseId,
-  getAllCourses
 } from "../controllers/courseController.js";
 
-const router = Router();
+const router = express.Router();
 
-// Get all courses
 router.get("/", getAllCourses);
-
-// Create course (for testing)
 router.post("/", createCourse);
-
-// CoursePage API
+router.post("/presign-video", presignVideoUpload);
+router.get("/:courseId/video-url", getCourseVideoUrl);
 router.get("/:courseId", getCourseByCourseId);
 
 export default router;
