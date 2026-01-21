@@ -68,3 +68,15 @@ export function isAdmin(): boolean {
   if (!role) return false;
   return role.toLowerCase() === 'admin';
 }
+
+export function isTutor(): boolean {
+  const role = getRole();
+  if (!role) return false;
+  return role.toLowerCase() === 'tutor';
+}
+
+export function isLearner(): boolean {
+  const role = getRole();
+  if (!role) return false;
+  return role.toLowerCase() === 'learner';
+}
