@@ -63,7 +63,7 @@ const registerValidation=[
 
 // public routes
 router.post("/login",loginValidation,login);
-router.post("/register",upload.single('avatar'),registerValidation,register);
+router.post("/register",memoryUpload.single('avatar'),registerValidation,register);
 router.get("/profile", protect, getProfile);
 router.put("/profile", protect, updateProfile);
 router.put("/change-password", protect, changePassword);
