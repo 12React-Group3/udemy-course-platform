@@ -8,6 +8,7 @@ import {
   PutCommand,
   QueryCommand,
   UpdateCommand,
+  DeleteCommand,
   generateId,
   formatCourse,
 } from './client.js';
@@ -132,6 +133,21 @@ export const CourseDB = {
       expressionAttributeValues[':videoURL'] = updates.videoURL;
     }
 
+    if (updates.videoKey !== undefined) {
+      updateExpressions.push('videoKey = :videoKey');
+      expressionAttributeValues[':videoKey'] = updates.videoKey;
+    }
+
+    if (updates.courseTag !== undefined) {
+      updateExpressions.push('courseTag = :courseTag');
+      expressionAttributeValues[':courseTag'] = updates.courseTag;
+    }
+
+    if (updates.instructor !== undefined) {
+      updateExpressions.push('instructor = :instructor');
+      expressionAttributeValues[':instructor'] = updates.instructor;
+    }
+
     if (updates.students !== undefined) {
       updateExpressions.push('students = :students');
       expressionAttributeValues[':students'] = updates.students;
@@ -154,5 +170,27 @@ export const CourseDB = {
     }));
 
     return formatCourse(result.Attributes);
+  },
+
+  /**
+   * Delete course by courseId
+   */
+  async remove(courseId) {
+    const course = await this.findByCourseId(courseId);
+    if (!course) {
+      return null;
+    }
+
+    const courseKey = course.courseUid || course._id || course.courseId;
+
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseKey}`,
+        SK: `COURSE#${courseKey}`,
+      },
+    }));
+
+    return course;
   },
 };
