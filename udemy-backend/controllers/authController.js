@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { UserDB } from '../models/dynamodb.js';
+import { UserDB } from '../models/index.js';
 
 
 
