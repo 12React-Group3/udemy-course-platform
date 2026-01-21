@@ -148,6 +148,34 @@
   margin-top: auto;
   padding: 12px;
   border-top: 1px solid var(--sb-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sb-role-badge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sb-role-learner {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.sb-role-tutor {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.sb-role-admin {
+  background: #fce4ec;
+  color: #c62828;
 }
 
 .sidebar-logout {

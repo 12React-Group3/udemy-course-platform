@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { isAdmin, logout } from '../auth/authStore';
+import { isAdmin, getRole, logout } from '../auth/authStore';
 import './Sidebar.css';
 
 type NavItem = {
@@ -27,6 +27,7 @@ export type SidebarProps = {
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }: SidebarProps) {
   const showAdmin = isAdmin();
+  const role = getRole();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -102,6 +103,11 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
 
         {!collapsed && (
           <div className="sidebar-footer">
+            {role && (
+              <div className={`sb-role-badge sb-role-${role.toLowerCase()}`}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </div>
+            )}
             <button className="sidebar-logout" type="button" onClick={handleLogout}>
               Logout
             </button>

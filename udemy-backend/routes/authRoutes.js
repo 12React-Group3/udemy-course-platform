@@ -45,7 +45,9 @@ const registerValidation=[
     body('userName').trim().isLength({min:3}).withMessage('Username must be at least 3 characters long'),
     body('email').isEmail().withMessage('Please provide a valid email address'),
     body('password').isLength({min:6}).withMessage('Password must be at least 6 characters long'),
-    body('role').isIn(['admin','learner']).withMessage('Role must be either admin or learner')
+    body('role')
+        .isIn(['tutor', 'learner'])
+        .withMessage('Role must be either tutor or learner')
 ];
 
 // public routes
