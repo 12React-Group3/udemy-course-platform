@@ -1,5 +1,5 @@
 // controllers/courseController.js
-import { CourseDB } from "../models/dynamodb.js";
+import { CourseDB } from "../models/index.js";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
