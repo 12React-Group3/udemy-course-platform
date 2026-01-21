@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import CoursePage from "../pages/Course/CoursePage";
-import AddCourse from "../pages/Course/AddCourse";
 import AllCourses from "../pages/Course/AllCourses";
 import ProfilePage from "../pages/Profile/ProfilePage";
 import Login from "../pages/Auth/Login";
@@ -41,7 +40,6 @@ export default function AppRoutes() {
         {/* Courses */}
         <Route path="/courses" element={<AllCourses />} />
         <Route path="/courses/:courseId" element={<CoursePage />} />
-        <Route path="/add-course" element={<AddCourse />} />
 
         {/* Tasks (placeholder) */}
         <Route path="/tasks" element={<TasksPage />} />
