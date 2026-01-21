@@ -397,7 +397,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <AddCourseModal
+      <AddCourse
         isOpen={isAddCourseModalOpen}
         onClose={() => setIsAddCourseModalOpen(false)}
         onSuccess={() => window.location.reload()}
