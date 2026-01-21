@@ -9,7 +9,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import AppLayout from "../components/AppLayout";
 import AdminRoute from "../components/AdminRoute";
 import Dashboard from "../pages/Dashboard";
-import TasksPage from "../pages/Tasks/TasksPage";
+import TasksPage from "../pages/Tasks/TutorTasksPage";
 import AdminPage from "../pages/Admin/AdminPage";
 
 function CatchAll() {

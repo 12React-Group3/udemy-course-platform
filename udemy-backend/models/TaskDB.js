@@ -7,6 +7,9 @@ import {
   TABLE_NAME,
   PutCommand,
   QueryCommand,
+  UpdateCommand,
+  DeleteCommand,
+  generateId,
   formatTask,
 } from './client.js';
 
@@ -14,22 +17,23 @@ export const TaskDB = {
   /**
    * Create a new task
    */
-  async create({ taskId, courseId, title, description = '', dueDate = null, type, questions = [] }) {
+  async create({ taskId, courseId, title, description = '', dueDate = null, type = 'quiz', createdBy }) {
     const now = new Date().toISOString();
+    const tId = taskId || generateId();
 
     const item = {
       PK: `COURSE#${courseId}`,
-      SK: `TASK#${taskId}`,
+      SK: `TASK#${tId}`,
       GSI1PK: 'ENTITY#TASK',
-      GSI1SK: `TASK#${taskId}`,
+      GSI1SK: `TASK#${tId}`,
       entityType: 'TASK',
-      taskId,
+      taskId: tId,
       courseId,
       title,
       description,
       dueDate,
       type,
-      questions,
+      createdBy,
       createdAt: now,
       updatedAt: now,
     };
@@ -77,5 +81,98 @@ export const TaskDB = {
     }));
 
     return (result.Items || []).map(formatTask);
+  },
+
+  /**
+   * Get all tasks
+   */
+  async findAll() {
+    const result = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: {
+        ':pk': 'ENTITY#TASK',
+      },
+    }));
+
+    return (result.Items || []).map(formatTask);
+  },
+
+  /**
+   * Get all tasks created by a user (tutor)
+   */
+  async findByCreator(userId) {
+    const allTasks = await this.findAll();
+    return allTasks.filter(task => task.createdBy === userId);
+  },
+
+  /**
+   * Update a task
+   */
+  async update(courseId, taskId, updates) {
+    const updateExpressions = [];
+    const expressionAttributeNames = {};
+    const expressionAttributeValues = {
+      ':updatedAt': new Date().toISOString(),
+    };
+
+    if (updates.title !== undefined) {
+      updateExpressions.push('#title = :title');
+      expressionAttributeNames['#title'] = 'title';
+      expressionAttributeValues[':title'] = updates.title;
+    }
+
+    if (updates.description !== undefined) {
+      updateExpressions.push('description = :description');
+      expressionAttributeValues[':description'] = updates.description;
+    }
+
+    if (updates.dueDate !== undefined) {
+      updateExpressions.push('dueDate = :dueDate');
+      expressionAttributeValues[':dueDate'] = updates.dueDate;
+    }
+
+    if (updates.type !== undefined) {
+      updateExpressions.push('#type = :type');
+      expressionAttributeNames['#type'] = 'type';
+      expressionAttributeValues[':type'] = updates.type;
+    }
+
+    updateExpressions.push('updatedAt = :updatedAt');
+
+    const result = await docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseId}`,
+        SK: `TASK#${taskId}`,
+      },
+      UpdateExpression: 'SET ' + updateExpressions.join(', '),
+      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    return formatTask(result.Attributes);
+  },
+
+  /**
+   * Delete a task
+   */
+  async remove(courseId, taskId) {
+    const task = await this.findById(taskId);
+    if (!task) {
+      return null;
+    }
+
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseId}`,
+        SK: `TASK#${taskId}`,
+      },
+    }));
+
+    return task;
   },
 };
