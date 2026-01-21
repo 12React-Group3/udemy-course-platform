@@ -6,7 +6,7 @@
   --sb-shadow: rgba(0, 0, 0, 0.08);
   --sb-width: 260px;
   --sb-width-collapsed: 76px;
-  --sb-topbar-height: 64px;
+  --sb-topbar-height: var(--app-topbar-height, 64px);
 }
 
 .sb-overlay {
@@ -28,9 +28,9 @@
   position: fixed;
   right: 0;
   left: auto;
-  top: 0;
-  height: 100vh;
-  padding-top: var(--sb-topbar-height);
+  top: var(--sb-topbar-height);
+  height: calc(100vh - var(--sb-topbar-height));
+  padding-top: 0;
   width: var(--sb-width);
   background: var(--sb-bg);
   border-left: 1px solid var(--sb-border);
@@ -40,6 +40,7 @@
   flex-direction: column;
   transition: width 180ms ease, transform 200ms ease;
   z-index: 900;
+  overflow-y: auto;
 }
 
 .sb.collapsed {
@@ -210,8 +211,8 @@
 /* Mobile drawer behavior */
 @media (max-width: 768px) {
   .sb {
-    top: 0;
-    height: 100vh;
+    top: var(--sb-topbar-height);
+    height: calc(100vh - var(--sb-topbar-height));
     transform: translateX(100%);
     z-index: 1100;
   }

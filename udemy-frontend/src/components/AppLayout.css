@@ -4,28 +4,25 @@
 
 .app-shell {
   min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-topbar {
   position: sticky;
   top: 0;
   z-index: 1200;
-  position: sticky;
-  position: sticky;
-}
-
-.app-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 1200;
-  position: relative; 
+  background: #fff;
 }
 
 .app-main {
-  padding-top: var(--app-topbar-height);
+  flex: 1;
   margin-right: var(--app-sb-width);
   width: calc(100% - var(--app-sb-width));
-  min-height: 100vh;
+  min-height: 0;
+  padding-top: 0;
+  overflow-x: hidden;
 }
 
 @media (max-width: 768px) {
