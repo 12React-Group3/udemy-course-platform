@@ -1,20 +1,21 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { Home, BookOpen, CheckSquare, Shield } from 'lucide-react';
 import { isAdmin, getRole, logout } from '../auth/authStore';
 import './Sidebar.css';
 
 type NavItem = {
   label: string;
   to: string;
-  icon: string;
+  icon: React.ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: '🏠' },
-  { label: 'Courses', to: '/courses', icon: '📚' },
-  { label: 'Tasks', to: '/tasks', icon: '✅' },
+  { label: 'Dashboard', to: '/dashboard', icon: <Home size={18} /> },
+  { label: 'Courses', to: '/courses', icon: <BookOpen size={18} /> },
+  { label: 'Tasks', to: '/tasks', icon: <CheckSquare size={18} /> },
 ];
 
-const adminItems: NavItem[] = [{ label: 'Admin', to: '/admin', icon: '🛠️' }];
+const adminItems: NavItem[] = [{ label: 'Admin', to: '/admin', icon: <Shield size={18} /> }];
 
 export type SidebarProps = {
   /** Mobile drawer open/close */
@@ -72,9 +73,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
               className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
               onClick={onClose}
             >
-              <span className="sb-icon" aria-hidden="true">
-                {item.icon}
-              </span>
+              <span className="sb-icon" aria-hidden="true">{item.icon}</span>
               <span className="sb-label">{item.label}</span>
             </NavLink>
           ))}
@@ -89,15 +88,13 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
-                onClick={onClose}
-              >
-                <span className="sb-icon" aria-hidden="true">
-                  {item.icon}
-                </span>
-                <span className="sb-label">{item.label}</span>
-              </NavLink>
-            ))}
+              className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
+              onClick={onClose}
+            >
+              <span className="sb-icon" aria-hidden="true">{item.icon}</span>
+              <span className="sb-label">{item.label}</span>
+            </NavLink>
+          ))}
           </>
         )}
 
