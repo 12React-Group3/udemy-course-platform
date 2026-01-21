@@ -54,15 +54,43 @@ export const register = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'User already exists with this email', statusCode: 400 });
         }
 
+        // Handle avatar upload to S3 if file is provided
+        let profileImageKey = null;
+        let profileImage = null;
+
+        if (req.file && S3_BUCKET_NAME) {
+            const file = req.file;
+            const ext = path.extname(file.originalname) || "";
+            const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, "");
+            const safeBase = base || "avatar";
+            // Use sanitized email and timestamp for unique key since userId doesn't exist yet
+            const safeEmail = email.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
+            profileImageKey = `avatars/${safeEmail}/${Date.now()}-${safeBase}${ext}`;
+
+            const putCmd = new PutObjectCommand({
+                Bucket: S3_BUCKET_NAME,
+                Key: profileImageKey,
+                ContentType: file.mimetype || "image/jpeg",
+                Body: file.buffer,
+            });
+
+            await s3Client.send(putCmd);
+
+            profileImage = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${profileImageKey}`;
+        }
+
         // create new user (password is hashed in UserDB.create)
         const user = await UserDB.create({
             userName,
             email,
             password,
-            role
+            role,
+            profileImage,
+            profileImageKey
         });
 
-
+        // Get signed URL for avatar if profileImageKey exists
+        const hydrated = await attachAvatarUrl(user);
 
         const token= generateToken(user._id, user.role);
 
@@ -70,13 +98,13 @@ export const register = async (req, res, next) => {
             success: true,
             data: {
                 user:{
-                    id: user._id,
-                    userName: user.userName,
-                    email: user.email,
-                    role: user.role,
-                    profileImage: user.profileImage || null,
-                    profileImageKey: user.profileImageKey || null,
-                    enrolledCourses: user.enrolledCourses || [],
+                    id: hydrated._id,
+                    userName: hydrated.userName,
+                    email: hydrated.email,
+                    role: hydrated.role,
+                    profileImage: hydrated.profileImage || null,
+                    profileImageKey: hydrated.profileImageKey || null,
+                    enrolledCourses: hydrated.enrolledCourses || [],
                 },
                 token
             },

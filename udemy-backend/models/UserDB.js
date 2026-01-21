@@ -18,7 +18,7 @@ export const UserDB = {
   /**
    * Create a new user
    */
-  async create({ userName, email, password, role = 'learner', profileImage = null, enrolledCourses = [] }) {
+  async create({ userName, email, password, role = 'learner', profileImage = null, profileImageKey = null, enrolledCourses = [] }) {
     const userId = generateId();
     const now = new Date().toISOString();
 
@@ -36,7 +36,7 @@ export const UserDB = {
       email: email.toLowerCase(),
       password: hashedPassword,
       profileImage,
-      profileImageKey: null,
+      profileImageKey,
       role,
       enrolledCourses,
       createdAt: now,
@@ -56,6 +56,7 @@ export const UserDB = {
       email: email.toLowerCase(),
       role,
       profileImage,
+      profileImageKey,
       enrolledCourses,
       createdAt: now,
       updatedAt: now,
