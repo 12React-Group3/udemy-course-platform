@@ -18,7 +18,7 @@ export const UserDB = {
   /**
    * Create a new user
    */
-  async create({ userName, email, password, role = 'learner', profileImage = null }) {
+  async create({ userName, email, password, role = 'learner', profileImage = null, enrolledCourses = [] }) {
     const userId = generateId();
     const now = new Date().toISOString();
 
@@ -37,6 +37,7 @@ export const UserDB = {
       password: hashedPassword,
       profileImage,
       role,
+      enrolledCourses,
       createdAt: now,
       updatedAt: now,
     };
@@ -54,6 +55,7 @@ export const UserDB = {
       email: email.toLowerCase(),
       role,
       profileImage,
+      enrolledCourses,
       createdAt: now,
       updatedAt: now,
     };
@@ -128,6 +130,13 @@ export const UserDB = {
     if (updates.profileImage !== undefined) {
       updateExpressions.push('profileImage = :profileImage');
       expressionAttributeValues[':profileImage'] = updates.profileImage;
+    }
+
+    if (updates.enrolledCourses !== undefined) {
+      updateExpressions.push('enrolledCourses = :enrolledCourses');
+      expressionAttributeValues[':enrolledCourses'] = Array.isArray(updates.enrolledCourses)
+        ? updates.enrolledCourses
+        : [];
     }
 
     if (updates.password !== undefined) {

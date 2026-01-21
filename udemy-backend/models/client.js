@@ -40,6 +40,7 @@ export function formatUser(item) {
     password: item.password,
     profileImage: item.profileImage,
     role: item.role,
+    enrolledCourses: item.enrolledCourses || [],
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -50,8 +51,11 @@ export function formatUser(item) {
  */
 export function formatCourse(item) {
   if (!item) return null;
+  const courseUid = item.courseUid || item.courseId;
   return {
-    _id: item.courseId,
+    _id: courseUid,
+    id: courseUid,
+    courseUid,
     courseId: item.courseId,
     title: item.title,
     description: item.description,
