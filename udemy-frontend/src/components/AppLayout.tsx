@@ -11,6 +11,13 @@ export default function AppLayout() {
   const location = useLocation();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const THEME_KEY = "theme";
+  const getInitialTheme = () => {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  };
+  const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     return localStorage.getItem(COLLAPSED_KEY) === "1";
@@ -56,6 +63,18 @@ export default function AppLayout() {
   // Only used for desktop layout spacing
   const sbWidth = useMemo(() => (effectiveCollapsed ? 76 : 260), [effectiveCollapsed]);
 
+  // Theme handling: apply to document when layout is mounted
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    return () => {
+      document.documentElement.removeAttribute("data-theme");
+    };
+  }, []);
+
   function toggleSidebar() {
     setIsSidebarOpen((v) => !v);
   }
@@ -68,13 +87,22 @@ export default function AppLayout() {
     setCollapsed((prev) => !prev);
   }
 
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
+
   return (
     <div
       className="app-shell"
       style={{ ["--app-sb-width" as any]: `${sbWidth}px` }}
     >
       <div className={`app-topbar ${isSidebarOpen ? "sb-open" : ""}`}>
-        <Topbar onLogoClick={() => navigate("/dashboard")} onToggleSidebar={toggleSidebar} />
+        <Topbar
+          onLogoClick={() => navigate("/dashboard")}
+          onToggleSidebar={toggleSidebar}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
       </div>
 
       <Sidebar

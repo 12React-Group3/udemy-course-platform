@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, BookOpen, CheckSquare, Shield } from 'lucide-react';
 import { isAdmin, getRole, logout } from '../auth/authStore';
@@ -6,7 +7,7 @@ import './Sidebar.css';
 type NavItem = {
   label: string;
   to: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 };
 
 const navItems: NavItem[] = [

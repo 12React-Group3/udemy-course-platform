@@ -1,12 +1,12 @@
 /* Topbar Variables */
 :root {
-  --topbar-primary: #007bff;
-  --topbar-primary-hover: #0056b3;
-  --topbar-bg: #ffffff;
-  --topbar-text: #1c1d1f;
-  --topbar-text-light: #6a6f73;
-  --topbar-border: #d1d7dc;
-  --topbar-shadow: rgba(0, 0, 0, 0.08);
+  --topbar-primary: var(--color-primary, #007bff);
+  --topbar-primary-hover: var(--color-primary-strong, #0056b3);
+  --topbar-bg: var(--color-panel, #ffffff);
+  --topbar-text: var(--color-text, #1c1d1f);
+  --topbar-text-light: var(--color-muted, #6a6f73);
+  --topbar-border: var(--color-border, #d1d7dc);
+  --topbar-shadow: var(--shadow-soft, rgba(0, 0, 0, 0.08));
   --topbar-height: 64px;
 }
 
@@ -74,7 +74,7 @@
   border-radius: 24px;
   font-size: 15px;
   color: var(--topbar-text);
-  background-color: #f7f9fa;
+  background-color: var(--color-surface-muted, #f7f9fa);
   transition: all 0.2s ease;
 }
 
@@ -124,7 +124,7 @@
 .search-result-item {
   padding: 12px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid var(--topbar-border);
   transition: background-color 0.15s ease;
 }
 
@@ -133,7 +133,7 @@
 }
 
 .search-result-item:hover {
-  background-color: #f7f9fa;
+  background-color: var(--color-surface-muted, #f7f9fa);
 }
 
 .search-result-title {
@@ -201,6 +201,25 @@
   background-color: var(--topbar-primary-hover);
 }
 
+.theme-toggle {
+  height: 36px;
+  width: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--topbar-border);
+  background: var(--topbar-bg);
+  color: var(--topbar-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-muted, #f7f9fa);
+  box-shadow: 0 2px 8px var(--topbar-shadow);
+}
+
 .btn-logout {
   padding: 10px 16px;
   background-color: transparent;
@@ -209,7 +228,7 @@
 }
 
 .btn-logout:hover {
-  background-color: #f7f9fa;
+  background-color: var(--color-surface-muted, #f7f9fa);
   border-color: var(--topbar-text-light);
 }
 
@@ -315,7 +334,7 @@
 }
 
 .topbar-user:hover {
-  background-color: #f7f9fa;
+  background-color: var(--color-surface-muted, #f7f9fa);
   border-color: var(--topbar-text-light);
 }
 
@@ -337,7 +356,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #f1f3f5;
+  background: var(--color-surface-muted, #f1f3f5);
   color: var(--topbar-text-light);
 }
 
