@@ -7,6 +7,7 @@ export const API_PATHS = {
     LOGIN: `${BASE_URL}/api/auth/login`,
     PROFILE: `${BASE_URL}/api/auth/profile`,
     CHANGE_PASSWORD: `${BASE_URL}/api/auth/change-password`,
+    UPLOAD_AVATAR: `${BASE_URL}/api/auth/avatar`,
   },
   COURSES: {
     GET_ALL: `${BASE_URL}/api/courses`,

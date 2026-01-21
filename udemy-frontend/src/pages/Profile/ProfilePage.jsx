@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { getProfile, changePassword } from "../../api/profile";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getProfile, changePassword, uploadAvatar } from "../../api/profile";
+import { Camera, RefreshCcw } from "lucide-react";
 import "./ProfilePage.css";
 
 export default function ProfilePage() {
@@ -8,6 +9,8 @@ export default function ProfilePage() {
   const [msg, setMsg] = useState("");
   const [user, setUser] = useState(null);
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   async function loadProfile() {
     setErr("");
@@ -64,7 +67,51 @@ export default function ProfilePage() {
     return isNaN(d.getTime()) ? "-" : d.toLocaleDateString();
   }, [user]);
 
+  const avatarUrl = useMemo(() => {
+    if (!user?.profileImage) return null;
+    return user.profileImage;
+  }, [user]);
+
   const enrolledCount = user?.enrolledCourses?.length || 0;
+
+  function handleAvatarKeyDown(e) {
+    if (uploading) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
+  }
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErr("");
+    setMsg("");
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const resp = await uploadAvatar(formData);
+      const upd = resp.data?.data?.user || resp.data?.data;
+      const updatedUser = upd?.user || upd;
+
+      setUser(updatedUser);
+      setMsg("Avatar updated");
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+    } catch (e) {
+      setErr(
+        e?.response?.data?.error ||
+          e?.response?.data?.message ||
+          e?.message ||
+          "Avatar upload failed"
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   if (loading) {
     return (
@@ -77,13 +124,30 @@ export default function ProfilePage() {
   return (
     <div className="profile-page">
       <div className="profile-header">
-        <div className="profile-avatar">
-          {user?.profileImage ? (
-            <img src={user.profileImage} alt={user?.userName || "Profile"} />
+        <div
+          className="profile-avatar"
+          role="button"
+          tabIndex={0}
+          aria-label={uploading ? "Uploading avatar" : "Change avatar"}
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          onKeyDown={handleAvatarKeyDown}
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={user?.userName || "Profile"} />
           ) : (
-            <span>{user?.userName?.charAt(0)?.toUpperCase() || "U"}</span>
+            <span className="avatar-initial">{user?.userName?.charAt(0)?.toUpperCase() || "U"}</span>
           )}
+          <div className={`avatar-overlay ${uploading ? "show" : ""}`}>
+            {uploading ? <RefreshCcw size={18} className="spin" /> : <Camera size={18} />}
+          </div>
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={handleAvatarChange}
+        />
 
         <div className="profile-meta">
           <div className="profile-name">{user?.userName || "-"}</div>
