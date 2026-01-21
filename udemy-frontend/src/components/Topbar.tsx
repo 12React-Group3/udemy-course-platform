@@ -5,11 +5,14 @@ import logo from "../assets/logo.png";
 import { fetchAllCourses } from "../api/courses";
 import { getProfile } from "../api/profile";
 import { BASE_URL } from "../api/apiPaths";
+import { Moon, Sun } from "lucide-react";
 
 export interface TopbarProps {
   onLogout?: () => void;       // kept for backward compatibility (not used now)
   onLogoClick?: () => void;
   onToggleSidebar?: () => void;
+  theme?: "light" | "dark";
+  onToggleTheme?: () => void;
 }
 
 type CourseLike = {
@@ -48,7 +51,7 @@ function DefaultAvatarIcon() {
  * - Removed Logout button
  * - Shows username + avatar (fallback icon)
  */
-export default function Topbar({ onLogoClick, onToggleSidebar }: TopbarProps) {
+export default function Topbar({ onLogoClick, onToggleSidebar, theme = "light", onToggleTheme }: TopbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -171,6 +174,18 @@ export default function Topbar({ onLogoClick, onToggleSidebar }: TopbarProps) {
     return resolveProfileImageUrl(raw);
   }, [profileUser]);
 
+  const themeButton = onToggleTheme ? (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={onToggleTheme}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  ) : null;
+
   const userName = profileUser?.userName || "User";
 
   function handleResultClick(course: CourseLike) {
@@ -245,6 +260,7 @@ export default function Topbar({ onLogoClick, onToggleSidebar }: TopbarProps) {
       </div>
 
       <div className="topbar-right">
+        {themeButton}
         {isLoggedIn ? (
           <>
             <button className="topbar-user" type="button" onClick={goToProfile} aria-label="Open profile">

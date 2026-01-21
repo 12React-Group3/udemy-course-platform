@@ -1,12 +1,12 @@
 :root {
-  --sb-bg: #ffffff;
-  --sb-text: #1c1d1f;
-  --sb-muted: #6a6f73;
-  --sb-border: #d1d7dc;
-  --sb-shadow: rgba(0, 0, 0, 0.08);
+  --sb-bg: var(--color-panel, #ffffff);
+  --sb-text: var(--color-text, #1c1d1f);
+  --sb-muted: var(--color-muted, #6a6f73);
+  --sb-border: var(--color-border, #d1d7dc);
+  --sb-shadow: var(--shadow-soft, rgba(0, 0, 0, 0.08));
   --sb-width: 260px;
   --sb-width-collapsed: 76px;
-  --sb-topbar-height: 64px;
+  --sb-topbar-height: var(--app-topbar-height, 64px);
 }
 
 .sb-overlay {
@@ -28,9 +28,9 @@
   position: fixed;
   right: 0;
   left: auto;
-  top: 0;
-  height: 100vh;
-  padding-top: var(--sb-topbar-height);
+  top: var(--sb-topbar-height);
+  height: calc(100vh - var(--sb-topbar-height));
+  padding-top: 0;
   width: var(--sb-width);
   background: var(--sb-bg);
   border-left: 1px solid var(--sb-border);
@@ -40,6 +40,7 @@
   flex-direction: column;
   transition: width 180ms ease, transform 200ms ease;
   z-index: 900;
+  overflow-y: auto;
 }
 
 .sb.collapsed {
@@ -73,7 +74,7 @@
 .sb-collapse,
 .sb-close {
   border: 1px solid var(--sb-border);
-  background: #f7f9fa;
+  background: var(--color-surface-muted, #f7f9fa);
   color: var(--sb-text);
   height: 32px;
   width: 32px;
@@ -86,7 +87,7 @@
 
 .sb-collapse:hover,
 .sb-close:hover {
-  background: #eef1f3;
+  background: var(--color-surface-muted, #eef1f3);
 }
 
 .sb-nav {
@@ -109,7 +110,7 @@
 }
 
 .sb-link:hover {
-  background: #f3f6f8;
+  background: var(--color-surface-muted, #f3f6f8);
 }
 
 .sb-link.active {
@@ -183,13 +184,13 @@
   height: 40px;
   border-radius: 10px;
   border: 1px solid var(--sb-border);
-  background: #fff;
+  background: var(--color-panel, #fff);
   cursor: pointer;
   font-weight: 700;
 }
 
 .sidebar-logout:hover {
-  background: #f7f9fa;
+  background: var(--color-surface-muted, #f7f9fa);
 }
 
 /* Collapsed: hide text labels and the big title; keep icons */
@@ -210,8 +211,8 @@
 /* Mobile drawer behavior */
 @media (max-width: 768px) {
   .sb {
-    top: 0;
-    height: 100vh;
+    top: var(--sb-topbar-height);
+    height: calc(100vh - var(--sb-topbar-height));
     transform: translateX(100%);
     z-index: 1100;
   }
