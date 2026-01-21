@@ -5,10 +5,10 @@
 import {
   docClient,
   TABLE_NAME,
-  GetCommand,
   PutCommand,
   QueryCommand,
   UpdateCommand,
+  generateId,
   formatCourse,
 } from './client.js';
 
@@ -27,13 +27,15 @@ export const CourseDB = {
     students = [],
   }) {
     const now = new Date().toISOString();
+    const courseUid = generateId();
 
     const item = {
-      PK: `COURSE#${courseId}`,
-      SK: `COURSE#${courseId}`,
+      PK: `COURSE#${courseUid}`,
+      SK: `COURSE#${courseUid}`,
       GSI1PK: 'ENTITY#COURSE',
       GSI1SK: `COURSE#${courseId}`,
       entityType: 'COURSE',
+      courseUid,
       courseId,
       title,
       description,
@@ -58,19 +60,21 @@ export const CourseDB = {
    * Find course by courseId
    */
   async findByCourseId(courseId) {
-    const result = await docClient.send(new GetCommand({
+    const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
-      Key: {
-        PK: `COURSE#${courseId}`,
-        SK: `COURSE#${courseId}`,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
+      ExpressionAttributeValues: {
+        ':pk': 'ENTITY#COURSE',
+        ':sk': `COURSE#${courseId}`,
       },
     }));
 
-    if (!result.Item) {
+    if (!result.Items || result.Items.length === 0) {
       return null;
     }
 
-    return formatCourse(result.Item);
+    return formatCourse(result.Items[0]);
   },
 
   /**
@@ -101,6 +105,13 @@ export const CourseDB = {
    * Update course
    */
   async update(courseId, updates) {
+    const course = await this.findByCourseId(courseId);
+    if (!course) {
+      return null;
+    }
+
+    const courseKey = course.courseUid || course._id || course.courseId;
+
     const updateExpressions = [];
     const expressionAttributeNames = {};
     const expressionAttributeValues = {};
@@ -133,8 +144,8 @@ export const CourseDB = {
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `COURSE#${courseId}`,
-        SK: `COURSE#${courseId}`,
+        PK: `COURSE#${courseKey}`,
+        SK: `COURSE#${courseKey}`,
       },
       UpdateExpression: 'SET ' + updateExpressions.join(', '),
       ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
