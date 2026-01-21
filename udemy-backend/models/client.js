@@ -77,6 +77,8 @@ export function formatQuestion(item) {
   return {
     _id: item.questionId,
     questionId: item.questionId,
+    taskId: item.taskId,
+    questionText: item.questionText,
     options: item.options || [],
     correctAnswer: item.correctAnswer,
     explanation: item.explanation,
@@ -99,7 +101,7 @@ export function formatTask(item) {
     description: item.description,
     dueDate: item.dueDate,
     type: item.type,
-    questions: item.questions || [],
+    createdBy: item.createdBy,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };

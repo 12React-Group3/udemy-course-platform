@@ -14,8 +14,23 @@ export const API_PATHS = {
     CREATE: `${BASE_URL}/api/courses`,
     PRESIGN_VIDEO: `${BASE_URL}/api/courses/presign-video`,
     GET_BY_ID: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
-
     GET_VIDEO_URL: (courseId) =>
       `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/video-url`,
+  },
+  TASKS: {
+    GET_ALL: `${BASE_URL}/api/tasks`,
+    CREATE: `${BASE_URL}/api/tasks`,
+    GET_BY_ID: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}`,
+    UPDATE: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}`,
+    DELETE: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}`,
+    GET_BY_COURSE: (courseId) => `${BASE_URL}/api/tasks/course/${encodeURIComponent(courseId)}`,
+    MY_SUBMISSIONS: `${BASE_URL}/api/tasks/my-submissions`,
+    ADD_QUESTION: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/questions`,
+    UPDATE_QUESTION: (taskId, questionId) =>
+      `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/questions/${encodeURIComponent(questionId)}`,
+    DELETE_QUESTION: (taskId, questionId) =>
+      `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/questions/${encodeURIComponent(questionId)}`,
+    SUBMIT: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/submit`,
+    GET_RECORDS: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/records`,
   },
 };

@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import courseRoutes from "./routes/courseRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
 // DynamoDB client is initialized after dotenv/config
 import "./config/dynamodb.js";
 
@@ -24,6 +25,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/courses", courseRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
 
 const PORT = process.env.PORT || 5000;
 
