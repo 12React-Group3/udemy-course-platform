@@ -48,6 +48,7 @@ export const register = async (req, res, next) => {
                     email: user.email,
                     role: user.role,
                     profileImage: user.profileImage || null,
+                    enrolledCourses: user.enrolledCourses || [],
                 },
                 token
             },
@@ -95,6 +96,7 @@ export const login = async (req, res, next) => {
                 userName: user.userName,
                 email: user.email,
                 role: user.role,
+                enrolledCourses: user.enrolledCourses || [],
             },
             token,
             message: 'User logged in successfully',
@@ -128,13 +130,10 @@ export const getProfile = async (req, res, next) => {
                     email: user.email,
                     role: user.role,
                     profileImage: user.profileImage || null,
+                    enrolledCourses: user.enrolledCourses || [],
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt,
                 },
-                userName: user.userName,
-                email: user.email,
-                role: user.role,
-                createdAt: user.createdAt,
-                updatedAt: user.updatedAt,
-                profileImage: user.profileImage || null,
             },
         });
     } catch (error) {
