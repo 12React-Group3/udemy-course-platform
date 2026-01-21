@@ -1,5 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { UserDB } from '../models/index.js';
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
+import path from "path";
 
 
 
@@ -12,6 +16,29 @@ export const generateToken = (id, role) => {
     );
 }
 
+async function attachAvatarUrl(user) {
+    if (!user || !S3_BUCKET_NAME) return user;
+
+    const key = user.profileImageKey;
+    if (!key) return user;
+
+    try {
+        const cmd = new GetObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: key,
+            ResponseContentType: "image/*",
+        });
+        const signedUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 60 }); // 1 hour
+        return {
+            ...user,
+            profileImage: signedUrl,
+            profileImageKey: key,
+        };
+    } catch (err) {
+        console.error("attachAvatarUrl error for", key, err);
+        return user;
+    }
+}
 
 // @desc    register a new user
 // @route   POST /api/auth/register
@@ -48,6 +75,7 @@ export const register = async (req, res, next) => {
                     email: user.email,
                     role: user.role,
                     profileImage: user.profileImage || null,
+                    profileImageKey: user.profileImageKey || null,
                     enrolledCourses: user.enrolledCourses || [],
                 },
                 token
@@ -89,14 +117,20 @@ export const login = async (req, res, next) => {
         // then user exists and password matches, generate token
         const token = generateToken(user._id, user.role);
 
+        const hydrated = await attachAvatarUrl(user);
+
         res.status(200).json({
             success: true,
             user: {
-                id: user._id,
-                userName: user.userName,
-                email: user.email,
-                role: user.role,
-                enrolledCourses: user.enrolledCourses || [],
+                id: hydrated._id,
+                userName: hydrated.userName,
+                email: hydrated.email,
+                role: hydrated.role,
+                profileImage: hydrated.profileImage || null,
+                profileImageKey: hydrated.profileImageKey || null,
+                enrolledCourses: hydrated.enrolledCourses || [],
+                createdAt: hydrated.createdAt,
+                updatedAt: hydrated.updatedAt,
             },
             token,
             message: 'User logged in successfully',
@@ -121,18 +155,21 @@ export const getProfile = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'User not found', statusCode: 404 });
         }
 
+        const hydrated = await attachAvatarUrl(user);
+
         res.status(200).json({
             success: true,
             data: {
                 user: {
-                    id: user._id,
-                    userName: user.userName,
-                    email: user.email,
-                    role: user.role,
-                    profileImage: user.profileImage || null,
-                    enrolledCourses: user.enrolledCourses || [],
-                    createdAt: user.createdAt,
-                    updatedAt: user.updatedAt,
+                    id: hydrated._id,
+                    userName: hydrated.userName,
+                    email: hydrated.email,
+                    role: hydrated.role,
+                    profileImage: hydrated.profileImage || null,
+                    profileImageKey: hydrated.profileImageKey || null,
+                    enrolledCourses: hydrated.enrolledCourses || [],
+                    createdAt: hydrated.createdAt,
+                    updatedAt: hydrated.updatedAt,
                 },
             },
         });
@@ -147,28 +184,100 @@ export const getProfile = async (req, res, next) => {
 // @access  Private
 export const updateProfile = async (req, res, next) => {
     try {
-        const { userName, email, profileImage } = req.body;
+        const { userName, email, profileImage, profileImageKey } = req.body;
 
         const updates = {};
         if (userName) updates.userName = userName;
         if (email) updates.email = email;
         if (profileImage) updates.profileImage = profileImage;
+        if (profileImageKey) updates.profileImageKey = profileImageKey;
 
         const user = await UserDB.updateProfile(req.user.id, updates);
+
+        const hydrated = await attachAvatarUrl(user);
 
         res.status(200).json({
             success: true,
             data: {
-                id: user._id,
-                userName: user.userName,
-                email: user.email,
-                role: user.role,
-                profileImage: user.profileImage || null,
+                user: {
+                    id: hydrated._id,
+                    userName: hydrated.userName,
+                    email: hydrated.email,
+                    role: hydrated.role,
+                    profileImage: hydrated.profileImage || null,
+                    profileImageKey: hydrated.profileImageKey || null,
+                    enrolledCourses: hydrated.enrolledCourses || [],
+                    createdAt: hydrated.createdAt,
+                    updatedAt: hydrated.updatedAt,
+                },
             },
             message: 'Profile updated successfully',
         });
     } catch (error) {
         next(error);
+    }
+};
+
+/**
+ * POST /api/auth/avatar
+ * multipart/form-data { avatar: file }
+ * Uploads avatar via backend to S3, updates user profileImageKey/profileImage, and returns hydrated user.
+ */
+export const uploadAvatar = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "Unauthorized" });
+        }
+
+        if (!S3_BUCKET_NAME) {
+            return res.status(500).json({ success: false, message: "S3 bucket is not configured" });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Avatar file is required" });
+        }
+
+        const file = req.file;
+        const ext = path.extname(file.originalname) || "";
+        const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9._-]/g, "");
+        const safeBase = base || "avatar";
+        const key = `avatars/${userId}/${Date.now()}-${safeBase}${ext}`;
+
+        const putCmd = new PutObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: key,
+            ContentType: file.mimetype || "image/jpeg",
+            Body: file.buffer,
+        });
+
+        await s3Client.send(putCmd);
+
+        const publicUrl = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+        const updated = await UserDB.updateProfile(userId, { profileImageKey: key, profileImage: publicUrl });
+        const hydrated = await attachAvatarUrl(updated);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                user: {
+                    id: hydrated._id,
+                    userName: hydrated.userName,
+                    email: hydrated.email,
+                    role: hydrated.role,
+                    profileImage: hydrated.profileImage || null,
+                    profileImageKey: hydrated.profileImageKey || null,
+                    enrolledCourses: hydrated.enrolledCourses || [],
+                    createdAt: hydrated.createdAt,
+                    updatedAt: hydrated.updatedAt,
+                },
+            },
+            message: "Avatar updated",
+        });
+    } catch (err) {
+        console.error("uploadAvatar error:", err);
+        return res.status(500).json({ success: false, message: err.message || "Server error" });
     }
 };
 

@@ -36,6 +36,7 @@ export const UserDB = {
       email: email.toLowerCase(),
       password: hashedPassword,
       profileImage,
+      profileImageKey: null,
       role,
       enrolledCourses,
       createdAt: now,
@@ -130,6 +131,11 @@ export const UserDB = {
     if (updates.profileImage !== undefined) {
       updateExpressions.push('profileImage = :profileImage');
       expressionAttributeValues[':profileImage'] = updates.profileImage;
+    }
+
+    if (updates.profileImageKey !== undefined) {
+      updateExpressions.push('profileImageKey = :profileImageKey');
+      expressionAttributeValues[':profileImageKey'] = updates.profileImageKey;
     }
 
     if (updates.enrolledCourses !== undefined) {

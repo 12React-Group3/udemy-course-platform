@@ -3,7 +3,7 @@ import { body } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { login, register, getProfile, updateProfile, changePassword } from '../controllers/authController.js';
+import { login, register, getProfile, updateProfile, changePassword, uploadAvatar } from '../controllers/authController.js';
 import protect from '../middleware/auth.js';
 
 
@@ -35,6 +35,17 @@ const upload = multer({
     }
 });
 
+const memoryUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype && file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
+    }
+});
 
 const loginValidation = [
     body('email').isEmail().withMessage('Invalid email address'),
@@ -56,4 +67,5 @@ router.post("/register",upload.single('avatar'),registerValidation,register);
 router.get("/profile", protect, getProfile);
 router.put("/profile", protect, updateProfile);
 router.put("/change-password", protect, changePassword);
+router.post("/avatar", protect, memoryUpload.single('avatar'), uploadAvatar);
 export default router;

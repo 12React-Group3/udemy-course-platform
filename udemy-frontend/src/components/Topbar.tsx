@@ -121,8 +121,11 @@ export default function Topbar({ onLogoClick, onToggleSidebar, theme = "light", 
     }
 
     loadProfile();
+    const onProfileUpdated = () => loadProfile();
+    window.addEventListener("profile-updated", onProfileUpdated);
     return () => {
       cancelled = true;
+      window.removeEventListener("profile-updated", onProfileUpdated);
     };
     // include location.pathname to refresh state after login navigation
   }, [isLoggedIn, location.pathname]);
@@ -171,7 +174,8 @@ export default function Topbar({ onLogoClick, onToggleSidebar, theme = "light", 
 
   const avatarUrl = useMemo(() => {
     const raw = profileUser?.profileImage ?? null;
-    return resolveProfileImageUrl(raw);
+    const resolved = resolveProfileImageUrl(raw);
+    return resolved;
   }, [profileUser]);
 
   const themeButton = onToggleTheme ? (

@@ -39,6 +39,7 @@ export function formatUser(item) {
     email: item.email,
     password: item.password,
     profileImage: item.profileImage,
+    profileImageKey: item.profileImageKey,
     role: item.role,
     enrolledCourses: item.enrolledCourses || [],
     createdAt: item.createdAt,
