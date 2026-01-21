@@ -1,5 +1,5 @@
 // controllers/courseController.js
-import { CourseDB } from "../models/index.js";
+import { CourseDB, TaskDB } from "../models/index.js";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
@@ -11,6 +11,11 @@ import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
 export async function presignVideoUpload(req, res) {
   try {
     const { courseId, fileName, contentType } = req.body || {};
+
+    // This route is protected (tutor/admin)
+    if (!req.user?.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     if (!courseId || !fileName || !contentType) {
       return res.status(400).json({
@@ -31,6 +36,17 @@ export async function presignVideoUpload(req, res) {
         success: false,
         message: "S3 bucket is not configured",
       });
+    }
+
+    // If the course already exists, only the course owner (or admin) can upload a new video
+    const existingCourse = await CourseDB.findByCourseId(courseId);
+    if (existingCourse && req.user.role !== "admin") {
+      if (!existingCourse.instructorId || existingCourse.instructorId !== req.user.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden: you can only upload videos for courses you own",
+        });
+      }
     }
 
     const safeCourseId = String(courseId).replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -107,12 +123,20 @@ export async function getCourseVideoUrl(req, res) {
  */
 export async function createCourse(req, res) {
   try {
-    const { courseId, title, description, instructor, courseTag, videoURL, videoKey } = req.body || {};
+    const { courseId, title, description, courseTag, videoURL, videoKey } = req.body || {};
 
-    if (!courseId || !title || !instructor) {
+    // This route is protected (tutor/admin). Instructor comes from req.user.
+    if (!req.user?.id || !req.user?.userName) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!courseId || !title) {
       return res.status(400).json({
         success: false,
-        message: "courseId, title, and instructor are required",
+        message: "courseId and title are required",
       });
     }
 
@@ -127,7 +151,8 @@ export async function createCourse(req, res) {
       description: description || "",
       videoURL: videoURL || "",
       videoKey: videoKey || "",
-      instructor,
+      instructor: req.user.userName,
+      instructorId: req.user.id,
       courseTag: courseTag || "",
       students: [],
     });
@@ -154,6 +179,27 @@ export async function getCourseByCourseId(req, res) {
     return res.status(200).json({ success: true, data: course });
   } catch (err) {
     return res.status(400).json({ success: false, message: "Invalid request" });
+  }
+}
+
+/**
+ * GET /api/courses/:courseId/tasks
+ * List all tasks under a course (CoursePage / TaskPage list view)
+ */
+export async function getTasksByCourseId(req, res) {
+  try {
+    const { courseId } = req.params;
+
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const tasks = await TaskDB.findByCourseId(courseId);
+    return res.status(200).json({ success: true, data: tasks });
+  } catch (err) {
+    console.error("getTasksByCourseId error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 }
 

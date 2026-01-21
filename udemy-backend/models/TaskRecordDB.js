@@ -1,77 +1,106 @@
 /**
  * TaskRecord Database Operations
+ *
+ * Per-user, per-task progress record.
+ * finalScore = bestScore.
+ *
+ * PK = USER#<userId>
+ * SK = TASKRECORD#<taskId>
+ * GSI1PK = TASK#<taskId> (class stats)
+ * GSI1SK = USER#<userId>
  */
 
 import {
   docClient,
   TABLE_NAME,
   GetCommand,
-  PutCommand,
   QueryCommand,
+  UpdateCommand,
   formatTaskRecord,
-} from './client.js';
+} from "./client.js";
 
 export const TaskRecordDB = {
-  /**
-   * Create a new task record
-   */
-  async create({ userId, taskId, responses = [], score = 0 }) {
-    const now = new Date().toISOString();
-
-    const item = {
-      PK: `USER#${userId}`,
-      SK: `TASKRECORD#${taskId}`,
-      GSI1PK: `TASK#${taskId}`,
-      GSI1SK: `USER#${userId}`,
-      entityType: 'TASKRECORD',
-      userId,
-      taskId,
-      responses,
-      score,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await docClient.send(new PutCommand({
-      TableName: TABLE_NAME,
-      Item: item,
-    }));
-
-    return formatTaskRecord(item);
+  async findByUserAndTask(userId, taskId) {
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: `TASKRECORD#${taskId}`,
+        },
+      })
+    );
+    return result.Item ? formatTaskRecord(result.Item) : null;
   },
 
-  /**
-   * Find task records for a user
-   */
-  async findByUserId(userId) {
-    const result = await docClient.send(new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
-      ExpressionAttributeValues: {
-        ':pk': `USER#${userId}`,
-        ':sk': 'TASKRECORD#',
-      },
-    }));
-
+  async findByTaskId(taskId) {
+    const result = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk",
+        ExpressionAttributeValues: {
+          ":pk": `TASK#${taskId}`,
+        },
+      })
+    );
     return (result.Items || []).map(formatTaskRecord);
   },
 
-  /**
-   * Find specific task record for user
-   */
-  async findByUserAndTask(userId, taskId) {
-    const result = await docClient.send(new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `USER#${userId}`,
-        SK: `TASKRECORD#${taskId}`,
-      },
-    }));
+  async upsert(userId, taskId, patch = {}) {
+    const now = new Date().toISOString();
 
-    if (!result.Item) {
-      return null;
+    const sets = [
+      "#entityType = if_not_exists(#entityType, :entityType)",
+      "#userId = if_not_exists(#userId, :userId)",
+      "#taskId = if_not_exists(#taskId, :taskId)",
+      "#GSI1PK = if_not_exists(#GSI1PK, :gsi1pk)",
+      "#GSI1SK = if_not_exists(#GSI1SK, :gsi1sk)",
+      "#createdAt = if_not_exists(#createdAt, :createdAt)",
+      "#updatedAt = :updatedAt",
+    ];
+
+    const names = {
+      "#entityType": "entityType",
+      "#userId": "userId",
+      "#taskId": "taskId",
+      "#GSI1PK": "GSI1PK",
+      "#GSI1SK": "GSI1SK",
+      "#createdAt": "createdAt",
+      "#updatedAt": "updatedAt",
+    };
+
+    const values = {
+      ":entityType": "TASKRECORD",
+      ":userId": userId,
+      ":taskId": taskId,
+      ":gsi1pk": `TASK#${taskId}`,
+      ":gsi1sk": `USER#${userId}`,
+      ":createdAt": now,
+      ":updatedAt": now,
+    };
+
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === undefined) continue;
+      names[`#${k}`] = k;
+      values[`:${k}`] = v;
+      sets.push(`#${k} = :${k}`);
     }
 
-    return formatTaskRecord(result.Item);
+    const result = await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: {
+          PK: `USER#${userId}`,
+          SK: `TASKRECORD#${taskId}`,
+        },
+        UpdateExpression: `SET ${sets.join(", ")}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
+    return result.Attributes ? formatTaskRecord(result.Attributes) : null;
   },
 };

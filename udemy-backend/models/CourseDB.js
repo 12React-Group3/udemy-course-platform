@@ -14,8 +14,8 @@ import {
 
 export const CourseDB = {
   /**
-   * Create a new course
-   */
+ * Create a new course
+ */
   async create({
     courseId,
     title,
@@ -23,6 +23,7 @@ export const CourseDB = {
     videoURL = '',
     videoKey = '',
     instructor,
+    instructorId = '',  
     courseTag = '',
     students = [],
   }) {
@@ -40,6 +41,7 @@ export const CourseDB = {
       videoURL,
       videoKey,
       instructor,
+      instructorId,    
       courseTag,
       students,
       createdAt: now,
@@ -53,6 +55,7 @@ export const CourseDB = {
 
     return formatCourse(item);
   },
+
 
   /**
    * Find course by courseId
