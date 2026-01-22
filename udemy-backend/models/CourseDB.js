@@ -121,6 +121,27 @@ export const CourseDB = {
   },
 
   /**
+   * Find course by courseUid or courseId
+   */
+  async findByCourseKey(courseKey) {
+    if (!courseKey) return null;
+
+    const result = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseKey}`,
+        SK: `COURSE#${courseKey}`,
+      },
+    }));
+
+    if (result.Item) {
+      return formatCourse(result.Item);
+    }
+
+    return await this.findByCourseId(courseKey);
+  },
+
+  /**
    * Get all courses
    */
   async findAll() {
@@ -200,6 +221,11 @@ export const CourseDB = {
     if (updates.instructor !== undefined) {
       updateExpressions.push("instructor = :instructor");
       expressionAttributeValues[":instructor"] = updates.instructor;
+    }
+
+    if (updates.instructorId !== undefined) {
+      updateExpressions.push('instructorId = :instructorId');
+      expressionAttributeValues[':instructorId'] = updates.instructorId;
     }
 
     if (updates.instructorId !== undefined) {

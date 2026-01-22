@@ -12,6 +12,7 @@ export interface ApiCourse {
   description?: string;
   isHidden?: boolean;
   thumbnailKey?: string;
+  students?: string[];
   thumbnailUrl?: string;
 }
 

@@ -79,6 +79,7 @@ export async function presignThumbnailUpload(req, res) {
     const { courseId, fileName, contentType } = req.body || {};
 
     const course = await CourseDB.findByCourseKey(courseId);
+    const course = await CourseDB.findByCourseKey(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -469,6 +470,12 @@ export async function updateCourse(req, res) {
       return res.status(400).json({ success: false, message: "No valid fields to update" });
     }
 
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const updated = await CourseDB.update(course.courseId, updates);
     const course = await CourseDB.findByCourseKey(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
