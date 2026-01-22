@@ -5,6 +5,7 @@ import { isLearner } from "../../auth/authStore";
 import "./TakeTaskPage.css";
 
 interface Question {
+  _id?: string;
   questionId: string;
   questionText: string;
   options: string[];
@@ -42,9 +43,10 @@ export default function TakeTaskPage() {
         if (!cancelled) {
           setTask(res.data.data);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(err.response?.data?.message || err.message || "Failed to load task");
+          const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
+          setError(errorObj.response?.data?.message || errorObj.message || "Failed to load task");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -84,7 +86,8 @@ export default function TakeTaskPage() {
 
     try {
       setSubmitting(true);
-      const res = await submitTask(taskId, { responses: payload });
+      // Pass just the array - API function wraps it in { responses }
+      const res = await submitTask(taskId, payload);
       if (!res.data?.success) {
         throw new Error(res.data?.message || "Failed to submit task");
       }
@@ -92,8 +95,9 @@ export default function TakeTaskPage() {
         state: { task, result: res.data.data },
         replace: true,
       });
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "Submission failed");
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(errorObj.response?.data?.message || errorObj.message || "Submission failed");
     } finally {
       setSubmitting(false);
     }
