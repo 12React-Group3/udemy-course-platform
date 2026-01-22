@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, MouseEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { fetchAllCourses, fetchCourseThumbnailUrl, subscribeCourse, unsubscribeCourse } from "../../api/courses";
 import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
@@ -84,6 +84,8 @@ export default function AllCourses() {
   const [toast, setToast] = useState("");
 
   const learner = isLearner();
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}`;
 
   const loadCourses = async () => {
     try {
@@ -293,6 +295,7 @@ export default function AllCourses() {
               <Link
                 key={courseUid}
                 to={`/courses/${encodeURIComponent(courseUid)}`}
+                state={{ from: currentPath }}
                 className="course-card"
               >
                 <div className="course-thumbnail">

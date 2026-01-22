@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { fetchAllCourses, fetchCourseThumbnailUrl, updateCourse as apiUpdateCourse, deleteCourse as apiDeleteCourse } from "../api/courses";
 import { getProfile } from "../api/profile";
 import { getRole, isTutor, isLearner, isAdmin } from "../auth/authStore";
@@ -144,6 +144,8 @@ interface CourseCardProps {
 function CourseCard({ course, showManageActions, onEdit, onDelete, onToggleHide }: CourseCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}`;
 
   const stop = (e: any) => {
     e.preventDefault();
@@ -165,7 +167,7 @@ function CourseCard({ course, showManageActions, onEdit, onDelete, onToggleHide 
 
   return (
     <div className={`course-card ${course.isHidden ? "hidden" : ""}`}>
-      <Link to={`/courses/${course.id}`} className="course-card-link">
+      <Link to={`/courses/${course.id}`} className="course-card-link" state={{ from: currentPath }}>
         <div className="course-thumbnail">
           <img src={course.thumbnail} alt={course.title} />
           {course.isHidden && <span className="course-badge">Hidden</span>}

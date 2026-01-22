@@ -1,6 +1,6 @@
 // src/pages/Course/CoursePage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   fetchCourseById,
   fetchCourseVideoUrl,
@@ -11,7 +11,6 @@ import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
 import { fetchTasksByCourseId } from "../../api/tasks";
 import type { ApiCourse } from "../../types";
-import { useNavigate } from "react-router-dom";
 import "./CoursePage.css";
 
 // Extended course type with additional fields from API
@@ -29,9 +28,9 @@ interface Task {
 }
 
 export default function CoursePage() {
-  // Route param is :courseUid (matches the route definition in AppRoutes.jsx)
   const { courseUid: courseId } = useParams<{ courseUid: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [course, setCourse] = useState<CourseData | null>(null);
   const [videoSrc, setVideoSrc] = useState("");
@@ -49,9 +48,22 @@ export default function CoursePage() {
   const [tasksErr, setTasksErr] = useState("");
 
   const learner = isLearner();
+  const locationState = (location.state as { from?: string } | null) ?? null;
+  const fromPath = locationState?.from;
+  const handleBack = () => {
+    if (fromPath) {
+      navigate(fromPath);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/courses");
+  };
   // Use the course's actual id (courseUid) for subscription check, not the URL param
   const courseUid = course?.id || course?.courseUid || courseId || "";
-  const subscribed = useMemo(() => courseUid ? enrolledSet.has(courseUid) : false, [enrolledSet, courseUid]);
+  const subscribed = useMemo(() => (courseUid ? enrolledSet.has(courseUid) : false), [enrolledSet, courseUid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,42 +164,55 @@ export default function CoursePage() {
     }
   };
 
-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="course-page">
+        <div className="fallback-container">
+          <div className="loading-spinner" />
+          <p>Loading course...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (err) {
     return (
-      <div style={{ padding: 16 }}>
-        <p style={{ color: "crimson" }}>Error: {err}</p>
-        <Link to="/">Back</Link>
+      <div className="course-page">
+        <div className="fallback-container error">
+          <p>Error: {err}</p>
+          <Link to="/">Back</Link>
+        </div>
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div style={{ padding: 16 }}>
-        <p>Course not found.</p>
-        <Link to="/">Back</Link>
+      <div className="course-page">
+        <div className="fallback-container">
+          <p>Course not found.</p>
+          <Link to="/">Back</Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="course-page">
-      <div className="course-page-content">
-        <button
-          className="back-btn course-back-link"
-          type="button"
-          onClick={() => navigate("/courses")}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back to catalog
-        </button>
+      <button
+        className="back-btn course-back-link"
+        type="button"
+        onClick={handleBack}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back to catalog
+      </button>
 
-        {toast && <div className="course-toast">{toast}</div>}
+      {toast && <div className="course-toast">{toast}</div>}
 
+      <div className="course-page-body">
         <div className="course-header-card">
           <div className="course-header-text">
             <h1 className="course-title">{course.title}</h1>
@@ -210,6 +235,7 @@ export default function CoursePage() {
               )}
             </div>
           </div>
+
           {learner ? (
             <div className="course-header-actions">
               <span className={`course-status-badge ${subscribed ? "course-status-badge--active" : ""}`}>
@@ -225,6 +251,7 @@ export default function CoursePage() {
             </div>
           ) : null}
         </div>
+
         <section className="course-section">
           <div className="section-card">
             <div className="section-heading">
