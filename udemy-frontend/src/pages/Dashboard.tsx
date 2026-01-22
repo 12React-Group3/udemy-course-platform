@@ -441,10 +441,16 @@ export default function Dashboard() {
         </div>
 
         <div className="dashboard-header-actions">
-          {/* ✅ NEW: visibility toggle */}
-          <button className="create-course-btn" onClick={cycleVisibility} title="Toggle visibility filter">
-            {visibilityLabel}
-          </button>
+          {/* Only tutor/admin can use visibility filter */}
+          {(isTutorUser || isAdminUser) && (
+            <button
+              className="create-course-btn"
+              onClick={cycleVisibility}
+              title="Toggle visibility filter"
+            >
+              {visibilityLabel}
+            </button>
+          )}
 
           {isTutorUser && (
             <button className="create-course-btn" onClick={() => setIsAddCourseModalOpen(true)}>
@@ -550,10 +556,10 @@ export default function Dashboard() {
         course={
           editingCourse
             ? {
-                ...editingCourse,
-                courseId: editingCourse.id,
-                courseTag: editingCourse.category,
-              }
+              ...editingCourse,
+              courseId: editingCourse.id,
+              courseTag: editingCourse.category,
+            }
             : null
         }
       />
