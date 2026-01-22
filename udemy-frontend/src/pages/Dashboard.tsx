@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllCourses, updateCourse as apiUpdateCourse, deleteCourse as apiDeleteCourse } from "../api/courses";
+import { fetchAllCourses, fetchCourseThumbnailUrl, updateCourse as apiUpdateCourse, deleteCourse as apiDeleteCourse } from "../api/courses";
 import { getProfile } from "../api/profile";
 import { getRole, isTutor, isLearner, isAdmin } from "../auth/authStore";
 import AddCourse from "./Course/AddCourse";
@@ -21,6 +21,38 @@ interface UserProfile {
   email: string;
   role: string;
   enrolledCourses: string[];
+}
+
+async function attachSignedThumbnails(courses: Course[]): Promise<Course[]> {
+  // only courses that have thumbnailKey
+  const targets = courses.filter((c: any) => typeof c.thumbnailKey === "string" && c.thumbnailKey.trim() !== "");
+
+  if (targets.length === 0) return courses;
+
+  const signedPairs = await Promise.all(
+    targets.map(async (c) => {
+      try {
+        const res = await fetchCourseThumbnailUrl(c.id);
+        const signedUrl =
+          res.data?.data?.signedUrl ||
+          res.data?.data?.data?.signedUrl;
+        if (!signedUrl) return [c.id, null] as const;
+        return [c.id, signedUrl] as const;
+      } catch {
+        return [c.id, null] as const;
+      }
+    })
+  );
+
+  const map = new Map<string, string>();
+  for (const [courseId, signedUrl] of signedPairs) {
+    if (signedUrl) map.set(courseId, signedUrl);
+  }
+
+  // overwrite thumbnail only for those we got a signed url for
+  return courses.map((c) =>
+    map.has(c.id) ? { ...c, thumbnail: map.get(c.id)! } : c
+  );
 }
 
 // Helper function to extract YouTube video thumbnail from URL
@@ -48,9 +80,10 @@ function getVideoThumbnail(videoURL: string | undefined): string | null {
 
 // Transform backend course data to frontend format
 function transformCourse(course: ApiCourse): Course {
+  // read key safely even if types aren't updated
+  const thumbnailKey = (course as any).thumbnailKey || "";
+
   const thumbnail =
-    // @ts-expect-error backend may send thumbnailUrl in future
-    (course as any).thumbnailUrl ||
     getVideoThumbnail(course.videoURL) ||
     `https://picsum.photos/seed/${course.courseId}/300/170`;
 
@@ -68,7 +101,8 @@ function transformCourse(course: ApiCourse): Course {
     videoURL: course.videoURL,
     videoKey: course.videoKey,
     isHidden: course.isHidden === true,
-  };
+    thumbnailKey,
+  } as any;
 }
 
 // Filter by time
@@ -163,7 +197,6 @@ export default function Dashboard() {
 
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  const userRole = getRole();
   const isTutorUser = isTutor();
   const isLearnerUser = isLearner();
   const isAdminUser = isAdmin();
@@ -174,7 +207,10 @@ export default function Dashboard() {
       throw new Error(coursesRes.data.message || "Failed to load courses");
     }
     const transformed = coursesRes.data.data.map(transformCourse);
-    setAllCourses(transformed);
+
+    const withThumbs = await attachSignedThumbnails(transformed);
+
+    setAllCourses(withThumbs);
   }
 
   useEffect(() => {
@@ -193,7 +229,10 @@ export default function Dashboard() {
         }
 
         const transformed = coursesRes.data.data.map(transformCourse);
-        setAllCourses(transformed);
+
+        const withThumbs = await attachSignedThumbnails(transformed);
+
+        setAllCourses(withThumbs);
 
         if (profileRes?.data?.success && profileRes.data.data?.user) {
           setUserProfile(profileRes.data.data.user);
@@ -276,6 +315,15 @@ export default function Dashboard() {
     el.addEventListener("scroll", checkScrollPosition);
     return () => el.removeEventListener("scroll", checkScrollPosition);
   }, [filteredCourses]);
+
+  useEffect(() => {
+    function onFocus() {
+      reloadCourses().catch(() => { });
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
 
   useEffect(() => {
     const el = carouselRef.current;

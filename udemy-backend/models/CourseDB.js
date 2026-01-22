@@ -28,6 +28,8 @@ export const CourseDB = {
     courseTag = '',
     students = [],
     isHidden = false,
+    thumbnailUrl = "",
+    thumbnailKey = "",
   }) {
     const now = new Date().toISOString();
     const courseUid = generateId();
@@ -49,6 +51,8 @@ export const CourseDB = {
       students,
       isHidden: isHidden === true,
       createdAt: now,
+      thumbnailUrl,
+      thumbnailKey,
     };
 
     await docClient.send(new PutCommand({
@@ -183,6 +187,16 @@ export const CourseDB = {
     if (updates.isHidden !== undefined) {
       updateExpressions.push("isHidden = :isHidden");
       expressionAttributeValues[":isHidden"] = updates.isHidden === true;
+    }
+
+    if (updates.thumbnailUrl !== undefined) {
+      updateExpressions.push("thumbnailUrl = :thumbnailUrl");
+      expressionAttributeValues[":thumbnailUrl"] = updates.thumbnailUrl;
+    }
+
+    if (updates.thumbnailKey !== undefined) {
+      updateExpressions.push("thumbnailKey = :thumbnailKey");
+      expressionAttributeValues[":thumbnailKey"] = updates.thumbnailKey;
     }
 
     // (Optional but recommended) keep updatedAt

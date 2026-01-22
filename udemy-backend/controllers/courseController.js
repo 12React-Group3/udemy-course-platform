@@ -10,6 +10,11 @@ function sanitizeUser(user) {
   return rest;
 }
 
+function getS3FileUrl(key) {
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
+  return `https://${S3_BUCKET_NAME}.s3.${region}.amazonaws.com/${key}`;
+}
+
 /**
  * POST /api/courses/presign-video
  * Body: { courseId, fileName, contentType }
@@ -50,7 +55,7 @@ export async function presignVideoUpload(req, res) {
     });
 
     const uploadUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 5 });
-    const fileUrl = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const fileUrl = getS3FileUrl(key);
 
     return res.status(200).json({
       success: true,
@@ -62,6 +67,92 @@ export async function presignVideoUpload(req, res) {
       success: false,
       message: err.message || "Server error",
     });
+  }
+}
+
+/**
+ * POST /api/courses/presign-thumbnail
+ * Body: { courseId, fileName, contentType }  contentType: image/jpeg or image/png
+ */
+export async function presignThumbnailUpload(req, res) {
+  try {
+    const { courseId, fileName, contentType } = req.body || {};
+
+    if (!courseId || !fileName || !contentType) {
+      return res.status(400).json({
+        success: false,
+        message: "courseId, fileName, contentType are required",
+      });
+    }
+
+    const allowed = new Set(["image/jpeg", "image/png"]);
+    if (!allowed.has(contentType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Only image/jpeg or image/png is allowed",
+      });
+    }
+
+    if (!S3_BUCKET_NAME) {
+      return res.status(500).json({
+        success: false,
+        message: "S3 bucket is not configured",
+      });
+    }
+
+    const safeCourseId = String(courseId).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeName = String(fileName).replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    // stable folder per course, unique per upload
+    const key = `courses/${safeCourseId}/thumbnail-${Date.now()}-${safeName}`;
+
+    const cmd = new PutObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 5 });
+    const fileUrl = getS3FileUrl(key);
+
+    return res.status(200).json({
+      success: true,
+      data: { uploadUrl, fileUrl, key },
+    });
+  } catch (err) {
+    console.error("presignThumbnailUpload error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Server error",
+    });
+  }
+}
+
+/**
+ * GET /api/courses/:courseId/thumbnail-url
+ * Returns a signed URL to view thumbnail from private S3
+ */
+export async function getCourseThumbnailUrl(req, res) {
+  try {
+    const { courseId } = req.params;
+
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!course) return res.status(404).json({ success: false, message: "Course not found" });
+
+    if (!course.thumbnailKey) {
+      return res.status(400).json({ success: false, message: "No thumbnailKey on course" });
+    }
+
+    const cmd = new GetObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: course.thumbnailKey,
+    });
+
+    const signedUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 5 });
+    return res.status(200).json({ success: true, data: { signedUrl } });
+  } catch (err) {
+    console.error("getCourseThumbnailUrl error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 }
 
@@ -82,7 +173,17 @@ export async function getAllCourses(req, res) {
  */
 export async function createCourse(req, res) {
   try {
-    const { courseId, title, description, instructor, courseTag, videoURL, videoKey } = req.body || {};
+    const {
+      courseId, 
+      title, 
+      description, 
+      instructor, 
+      courseTag, 
+      videoURL, 
+      videoKey, 
+      thumbnailUrl, 
+      thumbnailKey
+    } = req.body || {};
 
     if (!courseId || !title) {
       return res.status(400).json({
@@ -97,9 +198,7 @@ export async function createCourse(req, res) {
 
     // Tutors can only create courses under their own instructor name
     const effectiveInstructor =
-      actorRole === "tutor"
-        ? actor.userName
-        : (instructor || actor?.userName);
+      actorRole === "tutor" ? actor.userName : instructor || actor?.userName;
 
     if (!effectiveInstructor) {
       return res.status(400).json({
@@ -119,6 +218,9 @@ export async function createCourse(req, res) {
       description: description || "",
       videoURL: videoURL || "",
       videoKey: videoKey || "",
+      thumbnailUrl: thumbnailUrl || "",
+      thumbnailKey: thumbnailKey || "",
+
       instructor: effectiveInstructor,
       courseTag: courseTag || "",
       students: [],
@@ -197,11 +299,9 @@ export async function subscribeCourse(req, res) {
       return res.status(404).json({ success: false, message: "User or course not found" });
     }
 
-    // 1) update user.enrolledCourses
     const enrolled = new Set(user.enrolledCourses || []);
     enrolled.add(courseId);
 
-    // 2) update course.students
     const students = new Set(course.students || []);
     students.add(userId);
 
@@ -242,11 +342,9 @@ export async function unsubscribeCourse(req, res) {
       return res.status(404).json({ success: false, message: "User or course not found" });
     }
 
-    // 1) update user.enrolledCourses
     const enrolled = new Set(user.enrolledCourses || []);
     enrolled.delete(courseId);
 
-    // 2) update course.students
     const students = new Set(course.students || []);
     students.delete(userId);
 
@@ -283,9 +381,10 @@ export async function updateCourse(req, res) {
       instructor,
       students,
       isHidden,
+      thumbnailUrl,
+      thumbnailKey,
     } = req.body || {};
 
-    // Load course first (also used for ownership checks)
     const course = await CourseDB.findByCourseId(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
@@ -294,7 +393,6 @@ export async function updateCourse(req, res) {
     const actor = req.user || null;
     const role = (actor?.role || "").toLowerCase();
 
-    // Authorization: admin can manage all; tutor can manage own courses
     const isOwnerTutor =
       role === "tutor" &&
       actor?.userName &&
@@ -311,11 +409,11 @@ export async function updateCourse(req, res) {
     if (videoURL !== undefined) updates.videoURL = videoURL;
     if (videoKey !== undefined) updates.videoKey = videoKey;
     if (courseTag !== undefined) updates.courseTag = courseTag;
+    if (thumbnailUrl !== undefined) updates.thumbnailUrl = thumbnailUrl;
+    if (thumbnailKey !== undefined) updates.thumbnailKey = thumbnailKey;
 
-    // isHidden toggle: allow tutor(owner) and admin
     if (isHidden !== undefined) updates.isHidden = isHidden === true;
 
-    // Only admin can change these sensitive fields (kept for backward compatibility)
     if (role === "admin") {
       if (instructor !== undefined) updates.instructor = instructor;
       if (students !== undefined) updates.students = students;

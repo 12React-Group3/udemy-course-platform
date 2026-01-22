@@ -1,8 +1,96 @@
-import { useEffect, useRef, useState } from "react";
-import { presignVideoUpload, updateCourse } from "../../api/courses";
+import React, { useEffect, useRef, useState } from "react";
+import { presignVideoUpload, presignThumbnailUpload, updateCourse } from "../../api/courses";
 import "./AddCourse.css";
 
-export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
+/**
+ * Extract a thumbnail from a random (safe) frame of the local video file.
+ * Returns a JPEG Blob.
+ */
+async function extractRandomThumbnailBlob(videoFile: File): Promise<Blob> {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+
+    const objectUrl = URL.createObjectURL(videoFile);
+    video.src = objectUrl;
+
+    try {
+        // 1) Wait metadata
+        await new Promise < void> ((resolve, reject) => {
+            const onLoaded = () => resolve();
+            const onError = () => reject(new Error("Failed to load video metadata"));
+
+            video.addEventListener("loadedmetadata", onLoaded, { once: true });
+            video.addEventListener("error", onError, { once: true });
+        });
+
+        const duration = Number.isFinite(video.duration) ? video.duration : 3;
+        const safeMax = Math.max(0.2, duration - 0.2);
+        const t = Math.min(safeMax, Math.max(0.5, Math.random() * safeMax));
+
+        // Some browsers need loadeddata before seek works reliably
+        await new Promise < void> ((resolve, reject) => {
+            const onLoadedData = () => resolve();
+            const onError = () => reject(new Error("Failed to load video data"));
+            video.addEventListener("loadeddata", onLoadedData, { once: true });
+            video.addEventListener("error", onError, { once: true });
+        });
+
+        video.currentTime = t;
+
+        // 2) Wait seek
+        await new Promise < void> ((resolve, reject) => {
+            const onSeeked = () => resolve();
+            const onError = () => reject(new Error("Failed to seek video"));
+            video.addEventListener("seeked", onSeeked, { once: true });
+            video.addEventListener("error", onError, { once: true });
+        });
+
+        // 3) Draw frame on canvas
+        const canvas = document.createElement("canvas");
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas not supported");
+        ctx.drawImage(video, 0, 0, w, h);
+
+        // 4) Convert to JPEG blob
+        const blob = await new Promise < Blob > ((resolve, reject) => {
+            canvas.toBlob(
+                (b) => {
+                    if (!b) reject(new Error("Failed to generate thumbnail"));
+                    else resolve(b);
+                },
+                "image/jpeg",
+                0.85
+            );
+        });
+
+        return blob;
+    } finally {
+        try {
+            video.pause();
+            video.removeAttribute("src");
+            video.load();
+        } catch {
+            // ignore
+        }
+        URL.revokeObjectURL(objectUrl);
+    }
+}
+
+type EditCourseProps = {
+    isOpen: boolean;
+    onClose?: () => void;
+    onSuccess?: () => void;
+    course: any; // keep flexible since your Course type differs between pages
+};
+
+export default function EditCourse({ isOpen, onClose, onSuccess, course }: EditCourseProps) {
     const [form, setForm] = useState({
         title: "",
         description: "",
@@ -15,21 +103,19 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         courseTag: "",
     });
 
-    const [videoFile, setVideoFile] = useState(null);
+    const [videoFile, setVideoFile] = useState < File | null > (null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [uploadProgress, setUploadProgress] = useState(0);
 
     const courseId = course?.courseId || course?.id || "";
 
-    // ✅ AddCourse-style: initialize on open
-    // BUT guard so it runs only once per modal open (or courseId change)
-    const initializedForCourseIdRef = useRef(null);
+    // init once per open + courseId
+    const initializedForCourseIdRef = useRef < string | null > (null);
 
     useEffect(() => {
         if (!isOpen || !courseId) return;
 
-        // only init once per open for this courseId
         if (initializedForCourseIdRef.current === courseId) return;
         initializedForCourseIdRef.current = courseId;
 
@@ -44,9 +130,8 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         setVideoFile(null);
         setMessage("");
         setUploadProgress(0);
-    }, [isOpen, courseId]); // ✅ do NOT depend on `course` object
+    }, [isOpen, courseId]);
 
-    // when modal closes, reset init ref so next open re-inits
     useEffect(() => {
         if (!isOpen) initializedForCourseIdRef.current = null;
     }, [isOpen]);
@@ -61,7 +146,6 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         return formChanged || videoChanged;
     };
 
-    // ✅ unified close guard (same idea as AddCourse onClose, but with warning)
     const requestClose = () => {
         if (loading) return;
 
@@ -74,9 +158,9 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         if (ok) onClose?.();
     };
 
-    // ✅ AddCourse-style: Escape key + body scroll lock
+    // Escape + scroll lock
     useEffect(() => {
-        function handleEscape(e) {
+        function handleEscape(e: KeyboardEvent) {
             if (e.key === "Escape") requestClose();
         }
 
@@ -89,16 +173,17 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
             document.removeEventListener("keydown", handleEscape);
             document.body.style.overflow = "";
         };
-    }, [isOpen, loading, form, videoFile, initialForm]); // uses current dirty state
+        // we want current dirty state, so keep deps
+    }, [isOpen, loading, form, videoFile, initialForm]);
 
     if (!isOpen || !course) return null;
 
-    function handleChange(e) {
+    function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
     }
 
-    function handleVideoChange(e) {
+    function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0] || null;
         setMessage("");
 
@@ -117,7 +202,7 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         setVideoFile(file);
     }
 
-    async function handleSubmit(e) {
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setMessage("");
 
@@ -125,7 +210,7 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
             setMessage("Missing courseId.");
             return;
         }
-        if (!form.title) {
+        if (!form.title.trim()) {
             setMessage("Title is required.");
             return;
         }
@@ -134,13 +219,16 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
             setLoading(true);
             setUploadProgress(10);
 
-            let payload = {
+            // base payload always updates text fields
+            let payload: any = {
                 title: form.title,
                 description: form.description,
                 courseTag: form.courseTag,
             };
 
+            // If replacing video, also replace thumbnailKey (and DO NOT store public thumbnailUrl)
             if (videoFile) {
+                // 1) presign video upload
                 const presignRes = await presignVideoUpload({
                     courseId,
                     fileName: videoFile.name,
@@ -148,22 +236,62 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
                 });
 
                 if (!presignRes.data?.success) {
-                    throw new Error(presignRes.data?.message || "Failed to presign upload");
+                    throw new Error(presignRes.data?.message || "Failed to presign video upload");
                 }
 
                 const { uploadUrl, fileUrl, key } = presignRes.data.data;
-                setUploadProgress(35);
+                setUploadProgress(30);
 
+                // 2) upload video
                 const putResp = await fetch(uploadUrl, {
                     method: "PUT",
                     headers: { "Content-Type": "video/mp4" },
                     body: videoFile,
                 });
 
-                if (!putResp.ok) throw new Error(`S3 upload failed: ${putResp.status}`);
+                if (!putResp.ok) throw new Error(`S3 video upload failed: ${putResp.status}`);
+                setUploadProgress(55);
 
-                setUploadProgress(70);
-                payload = { ...payload, videoURL: fileUrl, videoKey: key };
+                // 3) generate thumbnail blob from NEW video
+                const thumbBlob = await extractRandomThumbnailBlob(videoFile);
+                setUploadProgress(65);
+
+                // 4) presign thumbnail upload
+                const thumbName = `thumbnail-${Date.now()}.jpg`;
+                const thumbPresign = await presignThumbnailUpload({
+                    courseId,
+                    fileName: thumbName,
+                    contentType: "image/jpeg",
+                });
+
+                if (!thumbPresign.data?.success) {
+                    throw new Error(thumbPresign.data?.message || "Failed to presign thumbnail upload");
+                }
+
+                const {
+                    uploadUrl: thumbUploadUrl,
+                    key: thumbKey,
+                    // fileUrl: thumbFileUrl, // ignore (private bucket => 403 if rendered directly)
+                } = thumbPresign.data.data;
+
+                // 5) upload thumbnail
+                const thumbPut = await fetch(thumbUploadUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": "image/jpeg" },
+                    body: thumbBlob,
+                });
+
+                if (!thumbPut.ok) throw new Error(`Thumbnail upload failed: ${thumbPut.status}`);
+                setUploadProgress(80);
+
+                // 6) include video + thumbnail keys in update payload
+                payload = {
+                    ...payload,
+                    videoURL: fileUrl,
+                    videoKey: key,
+                    thumbnailKey: thumbKey,
+                    thumbnailUrl: "", // critical: don't store/serve public URL for private bucket
+                };
             }
 
             const updateRes = await updateCourse(courseId, payload);
@@ -174,7 +302,7 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
             setUploadProgress(100);
             setMessage("Course updated successfully!");
 
-            // ✅ baseline becomes the saved state
+            // saved baseline
             setInitialForm({
                 title: form.title,
                 description: form.description,
@@ -186,7 +314,7 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
                 onSuccess?.();
                 onClose?.();
             }, 600);
-        } catch (err) {
+        } catch (err: any) {
             const msg =
                 err?.response?.data?.error ||
                 err?.response?.data?.message ||
@@ -199,11 +327,8 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
         }
     }
 
-    function handleBackdropClick(e) {
-        // ✅ AddCourse-style: click outside to close, but guarded
-        if (e.target === e.currentTarget && !loading) {
-            requestClose();
-        }
+    function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
+        if (e.target === e.currentTarget && !loading) requestClose();
     }
 
     return (
@@ -236,12 +361,7 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
 
                     <div className="form-group">
                         <label>Title *</label>
-                        <input
-                            name="title"
-                            value={form.title}
-                            onChange={handleChange}
-                            disabled={loading}
-                        />
+                        <input name="title" value={form.title} onChange={handleChange} disabled={loading} />
                     </div>
 
                     <div className="form-group">
@@ -268,6 +388,9 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }) {
                     <div className="form-group">
                         <label>Replace Video (optional, mp4)</label>
                         <input type="file" accept="video/mp4" onChange={handleVideoChange} disabled={loading} />
+                        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
+                            If you replace the video, we will auto-generate & upload a new thumbnail too.
+                        </div>
                     </div>
 
                     {loading && uploadProgress > 0 && (
