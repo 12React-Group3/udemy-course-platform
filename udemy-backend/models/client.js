@@ -90,10 +90,12 @@ export function formatQuestion(item) {
 
 export function formatTask(item) {
   if (!item) return null;
+  const courseUid = item.courseUid || item.courseId || "";
   return {
     _id: item.taskId,
     taskId: item.taskId,
-    courseId: item.courseId,
+    courseId: item.courseId || courseUid,
+    courseUid,
     title: item.title || "",
     description: item.description || "",
     dueDate: item.dueDate || null,

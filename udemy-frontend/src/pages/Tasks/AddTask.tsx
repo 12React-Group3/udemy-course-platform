@@ -7,6 +7,8 @@ type Course = {
   courseId: string;
   title: string;
   instructor: string;
+  courseUid?: string;
+  id?: string;
 };
 
 type QuestionForm = {
@@ -83,7 +85,7 @@ export default function AddTask({
   useEffect(() => {
     if (isOpen) {
       // Use course.id (courseUid) for the form value
-      const firstCourseUid = courses.length > 0 ? (courses[0].id || courses[0].courseUid || courses[0].courseId) : "";
+      const firstCourseUid = courses.length > 0 ? (courses[0].courseUid || courses[0].id || courses[0].courseId) : "";
       setForm({
         courseId: firstCourseUid,
         title: "",
@@ -234,8 +236,9 @@ export default function AddTask({
         onSuccess?.();
         onClose?.();
       }, 800);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Something went wrong";
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const msg = err.response?.data?.message || err.message || "Something went wrong";
       setMessage(msg);
     } finally {
       setLoading(false);
@@ -278,7 +281,7 @@ export default function AddTask({
                   {courses.length === 0 && <option value="">No courses found</option>}
                   {courses.map((course) => {
                     // Use course.id (courseUid) as the value
-                    const courseUid = course.id || course.courseUid || course.courseId;
+                const courseUid = course.courseUid || course.id || course.courseId;
                     return (
                       <option key={courseUid} value={courseUid}>
                         {course.title}

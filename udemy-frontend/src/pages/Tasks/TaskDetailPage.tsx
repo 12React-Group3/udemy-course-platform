@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { fetchTaskById, fetchTaskRecords } from "../../api/tasks";
 import { fetchCourseById } from "../../api/courses";
 import "./TaskDetailPage.css";
+import { isAdmin, isTutor } from "../../auth/authStore";
 
 interface Question {
   questionId: string;
@@ -15,7 +16,8 @@ interface Question {
 
 interface Task {
   taskId: string;
-  courseId: string;
+  courseUid?: string;
+  courseId?: string;
   title: string;
   description: string;
   type: string;
@@ -79,15 +81,20 @@ export default function TaskDetailPage() {
         setTask(taskData);
 
         // Fetch course details
-        const courseRes = await fetchCourseById(taskData.courseId);
-        if (courseRes.data?.success) {
-          setCourse(courseRes.data.data);
+        const courseIdentifier = taskData.courseUid || taskData.courseId || "";
+        if (courseIdentifier) {
+          const courseRes = await fetchCourseById(courseIdentifier);
+          if (courseRes.data?.success) {
+            setCourse(courseRes.data.data);
+          }
         }
 
-        // Fetch task records
-        const recordsRes = await fetchTaskRecords(taskId);
-        if (recordsRes.data?.success) {
-          setRecords(recordsRes.data.data);
+        // Fetch task records only when tutor/admin
+        if (isTutor() || isAdmin()) {
+          const recordsRes = await fetchTaskRecords(taskId);
+          if (recordsRes.data?.success) {
+            setRecords(recordsRes.data.data);
+          }
         }
       } catch (err: any) {
         const msg = err.response?.data?.message || err.message || "Failed to load data";

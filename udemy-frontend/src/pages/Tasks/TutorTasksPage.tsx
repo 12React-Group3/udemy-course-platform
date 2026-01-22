@@ -16,7 +16,8 @@ interface Question {
 
 interface Task {
   taskId: string;
-  courseId: string;
+  courseUid?: string;
+  courseId?: string;
   title: string;
   description: string;
   type: string;
@@ -30,6 +31,8 @@ interface Course {
   title: string;
   instructor: string;
   instructorId?: string;
+  courseUid?: string;
+  id?: string;
 }
 
 interface UserProfile {
@@ -95,22 +98,32 @@ export default function TutorTasksPage() {
   }, [allCourses, userProfile]);
 
   // Get courseIds for tutor's courses
-  const tutorCourseIds = useMemo(() => {
-    return new Set(tutorCourses.map((c) => c.courseId));
+  const tutorCourseUids = useMemo(() => {
+    const ids = new Set<string>();
+    tutorCourses.forEach((course) => {
+      [course.courseUid, course.id, course.courseId].forEach((value) => {
+        if (value) ids.add(value);
+      });
+    });
+    return ids;
   }, [tutorCourses]);
 
   // Filter tasks to only show tasks for tutor's courses
   const tutorTasks = useMemo(() => {
-    return tasks.filter((t) => tutorCourseIds.has(t.courseId));
-  }, [tasks, tutorCourseIds]);
+    return tasks.filter((t) =>
+      tutorCourseUids.has(t.courseUid || t.courseId || "")
+    );
+  }, [tasks, tutorCourseUids]);
 
   const filteredTasks = useMemo(() => {
     if (filterCourse === "all") return tutorTasks;
-    return tutorTasks.filter((t) => t.courseId === filterCourse);
+    return tutorTasks.filter((t) => (t.courseUid || t.courseId || "") === filterCourse);
   }, [tutorTasks, filterCourse]);
 
   const getCourseName = (courseId: string) => {
-    const course = allCourses.find((c) => c.courseId === courseId);
+    const course = allCourses.find(
+      (c) => (c.courseUid || c.id || c.courseId) === courseId
+    );
     return course?.title || courseId;
   };
 
@@ -184,7 +197,7 @@ export default function TutorTasksPage() {
           >
             <option value="all">All Courses</option>
             {tutorCourses.map((course) => (
-              <option key={course.courseId} value={course.courseId}>
+              <option key={course.courseUid || course.courseId} value={course.courseUid || course.id || course.courseId}>
                 {course.title}
               </option>
             ))}
@@ -221,7 +234,9 @@ export default function TutorTasksPage() {
                 <div className="task-card-info">
                   <div className="task-card-top">
                     <span className={`task-type-badge ${task.type}`}>{task.type}</span>
-                    <span className="task-course-badge">{getCourseName(task.courseId)}</span>
+                    <span className="task-course-badge">
+                      {getCourseName(task.courseUid || task.courseId || "")}
+                    </span>
                   </div>
                   <h3 className="task-card-title">{task.title}</h3>
                   {task.description && (

@@ -46,7 +46,14 @@ export default function AppRoutes() {
 
         {/* Tasks */}
         <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+        <Route
+          path="/tasks/:taskId"
+          element={
+            <TutorRoute>
+              <TaskDetailPage />
+            </TutorRoute>
+          }
+        />
 
         {/* Profile */}
         <Route path="/profile" element={<ProfilePage />} />

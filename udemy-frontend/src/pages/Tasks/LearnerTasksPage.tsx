@@ -15,7 +15,8 @@ interface Question {
 
 interface Task {
   taskId: string;
-  courseId: string;
+  courseUid?: string;
+  courseId?: string;
   title: string;
   description: string;
   type: string;
@@ -90,27 +91,25 @@ export default function LearnerTasksPage() {
     };
   }, []);
 
-  const enrolledCourseIds = useMemo(() => {
+  const enrolledCourseUids = useMemo(() => {
     if (!userProfile?.enrolledCourses || userProfile.enrolledCourses.length === 0) {
       return new Set<string>();
     }
-
-    const enrolledUids = new Set(userProfile.enrolledCourses);
-    const courseIdMap = courses
-      .filter((course) => enrolledUids.has(course.courseUid || course.courseId))
-      .map((course) => course.courseId);
-
-    return new Set(courseIdMap);
-  }, [courses, userProfile]);
+    return new Set(userProfile.enrolledCourses);
+  }, [userProfile]);
 
   const learnerTasks = useMemo(() => {
-    if (enrolledCourseIds.size === 0) return [];
-    return tasks.filter((task) => enrolledCourseIds.has(task.courseId));
-  }, [tasks, enrolledCourseIds]);
+    if (enrolledCourseUids.size === 0) return [];
+    return tasks.filter((task) =>
+      enrolledCourseUids.has(task.courseUid || task.courseId || "")
+    );
+  }, [tasks, enrolledCourseUids]);
 
-  const getCourseName = (courseId: string) => {
-    const course = courses.find((c) => c.courseId === courseId);
-    return course?.title || courseId;
+  const getCourseName = (courseUid: string) => {
+    const course = courses.find(
+      (c) => (c.courseUid || c.courseId) === courseUid
+    );
+    return course?.title || courseUid;
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -186,7 +185,9 @@ export default function LearnerTasksPage() {
                 <div className="task-card-info">
                   <div className="task-card-top">
                     <span className={`task-type-badge ${task.type}`}>{task.type}</span>
-                    <span className="task-course-badge">{getCourseName(task.courseId)}</span>
+                    <span className="task-course-badge">
+                      {getCourseName(task.courseUid || task.courseId || "")}
+                    </span>
                   </div>
                   <h3 className="task-card-title">{task.title}</h3>
                   {task.description && (
