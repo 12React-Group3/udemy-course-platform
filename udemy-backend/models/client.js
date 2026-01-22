@@ -12,24 +12,13 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { docClient, TABLE_NAME } from '../config/dynamodb.js';
 
-// Re-export for use in model files
 export { docClient, TABLE_NAME };
 export { GetCommand, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, ScanCommand };
 
-/**
- * Generate a unique ID
- */
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
 
-// ============================================
-// Formatters
-// ============================================
-
-/**
- * Format user for API response
- */
 export function formatUser(item) {
   if (!item) return null;
   return {
@@ -47,9 +36,6 @@ export function formatUser(item) {
   };
 }
 
-/**
- * Format course for API response
- */
 export function formatCourse(item) {
   if (!item) return null;
   const courseUid = item.courseUid || item.courseId;
@@ -65,6 +51,8 @@ export function formatCourse(item) {
     instructor: item.instructor,
     students: item.students || [],
     courseTag: item.courseTag,
+    // Backward-compatible: older items won't have isHidden
+    isHidden: item.isHidden === true,
     createdAt: item.createdAt,
   };
 }
@@ -88,9 +76,6 @@ export function formatQuestion(item) {
   };
 }
 
-/**
- * Format task for API response
- */
 export function formatTask(item) {
   if (!item) return null;
   return {
@@ -107,9 +92,6 @@ export function formatTask(item) {
   };
 }
 
-/**
- * Format task record for API response
- */
 export function formatTaskRecord(item) {
   if (!item) return null;
   return {

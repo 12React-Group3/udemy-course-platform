@@ -6,7 +6,6 @@ import { s3Client, S3_BUCKET_NAME } from "../config/s3.js";
 
 function sanitizeUser(user) {
   if (!user) return null;
-  // Avoid leaking hashed password in responses
   const { password, ...rest } = user;
   return rest;
 }
@@ -51,7 +50,6 @@ export async function presignVideoUpload(req, res) {
     });
 
     const uploadUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 5 });
-
     const fileUrl = `https://${S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
     return res.status(200).json({
@@ -68,44 +66,14 @@ export async function presignVideoUpload(req, res) {
 }
 
 /**
- * GET /api/courses/:courseId/video-url
- * Return presigned GET url for private bucket playback
+ * GET /api/courses
  */
-export async function getCourseVideoUrl(req, res) {
+export async function getAllCourses(req, res) {
   try {
-    const { courseId } = req.params;
-
-    const course = await CourseDB.findByCourseId(courseId);
-    if (!course) {
-      return res.status(404).json({ success: false, message: "Course not found" });
-    }
-
-    if (!course.videoKey) {
-      return res.status(400).json({ success: false, message: "This course has no uploaded video" });
-    }
-
-    if (!S3_BUCKET_NAME) {
-      return res.status(500).json({ success: false, message: "S3 bucket is not configured" });
-    }
-
-    const cmd = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: course.videoKey,
-      ResponseContentType: "video/mp4",
-    });
-
-    const signedUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 10 });
-
-    return res.status(200).json({
-      success: true,
-      data: { signedUrl },
-    });
+    const courses = await CourseDB.findAll();
+    return res.status(200).json({ success: true, data: courses });
   } catch (err) {
-    console.error("getCourseVideoUrl error:", err);
-    return res.status(500).json({
-      success: false,
-      message: err.message || "Server error",
-    });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 }
 
@@ -116,10 +84,27 @@ export async function createCourse(req, res) {
   try {
     const { courseId, title, description, instructor, courseTag, videoURL, videoKey } = req.body || {};
 
-    if (!courseId || !title || !instructor) {
+    if (!courseId || !title) {
       return res.status(400).json({
         success: false,
-        message: "courseId, title, and instructor are required",
+        message: "courseId and title are required",
+      });
+    }
+
+    // Backward-compatible default: if auth middleware ran, prefer req.user
+    const actor = req.user || null;
+    const actorRole = (actor?.role || "").toLowerCase();
+
+    // Tutors can only create courses under their own instructor name
+    const effectiveInstructor =
+      actorRole === "tutor"
+        ? actor.userName
+        : (instructor || actor?.userName);
+
+    if (!effectiveInstructor) {
+      return res.status(400).json({
+        success: false,
+        message: "instructor is required",
       });
     }
 
@@ -134,9 +119,10 @@ export async function createCourse(req, res) {
       description: description || "",
       videoURL: videoURL || "",
       videoKey: videoKey || "",
-      instructor,
+      instructor: effectiveInstructor,
       courseTag: courseTag || "",
       students: [],
+      isHidden: false, // default visible
     });
 
     return res.status(201).json({ success: true, data: course });
@@ -152,27 +138,98 @@ export async function createCourse(req, res) {
 export async function getCourseByCourseId(req, res) {
   try {
     const { courseId } = req.params;
-
     const course = await CourseDB.findByCourseId(courseId);
+
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
 
     return res.status(200).json({ success: true, data: course });
   } catch (err) {
-    return res.status(400).json({ success: false, message: "Invalid request" });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 }
 
 /**
- * GET /api/courses
+ * GET /api/courses/:courseId/video-url
  */
-export async function getAllCourses(req, res) {
+export async function getCourseVideoUrl(req, res) {
   try {
-    const courses = await CourseDB.findAll();
-    return res.status(200).json({ success: true, data: courses });
+    const { courseId } = req.params;
+
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!course) return res.status(404).json({ success: false, message: "Course not found" });
+
+    if (!course.videoKey) {
+      return res.status(400).json({ success: false, message: "No videoKey on course" });
+    }
+
+    const cmd = new GetObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: course.videoKey,
+    });
+
+    const signedUrl = await getSignedUrl(s3Client, cmd, { expiresIn: 60 * 5 });
+    return res.status(200).json({ success: true, data: { signedUrl } });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "Server error" });
+    console.error("getCourseVideoUrl error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+}
+
+/**
+ * POST /api/courses/:courseId/subscribe
+ */
+export async function subscribeCourse(req, res) {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.id;
+
+    const user = await UserDB.findById(userId);
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!user || !course) {
+      return res.status(404).json({ success: false, message: "User or course not found" });
+    }
+
+    const enrolled = new Set(user.enrolledCourses || []);
+    enrolled.add(courseId);
+
+    const updatedUser = await UserDB.update(userId, { enrolledCourses: Array.from(enrolled) });
+
+    return res.status(200).json({
+      success: true,
+      data: { user: sanitizeUser(updatedUser) },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+}
+
+/**
+ * POST /api/courses/:courseId/unsubscribe
+ */
+export async function unsubscribeCourse(req, res) {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.id;
+
+    const user = await UserDB.findById(userId);
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!user || !course) {
+      return res.status(404).json({ success: false, message: "User or course not found" });
+    }
+
+    const enrolled = new Set(user.enrolledCourses || []);
+    enrolled.delete(courseId);
+
+    const updatedUser = await UserDB.update(userId, { enrolledCourses: Array.from(enrolled) });
+
+    return res.status(200).json({
+      success: true,
+      data: { user: sanitizeUser(updatedUser) },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 }
 
@@ -182,6 +239,7 @@ export async function getAllCourses(req, res) {
 export async function updateCourse(req, res) {
   try {
     const { courseId } = req.params;
+
     const {
       title,
       description,
@@ -190,7 +248,28 @@ export async function updateCourse(req, res) {
       courseTag,
       instructor,
       students,
+      isHidden,
     } = req.body || {};
+
+    // Load course first (also used for ownership checks)
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const actor = req.user || null;
+    const role = (actor?.role || "").toLowerCase();
+
+    // Authorization: admin can manage all; tutor can manage own courses
+    const isOwnerTutor =
+      role === "tutor" &&
+      actor?.userName &&
+      course?.instructor &&
+      String(course.instructor).toLowerCase() === String(actor.userName).toLowerCase();
+
+    if (!(role === "admin" || isOwnerTutor)) {
+      return res.status(403).json({ success: false, message: "Not allowed to update this course" });
+    }
 
     const updates = {};
     if (title !== undefined) updates.title = title;
@@ -198,8 +277,15 @@ export async function updateCourse(req, res) {
     if (videoURL !== undefined) updates.videoURL = videoURL;
     if (videoKey !== undefined) updates.videoKey = videoKey;
     if (courseTag !== undefined) updates.courseTag = courseTag;
-    if (instructor !== undefined) updates.instructor = instructor;
-    if (students !== undefined) updates.students = students;
+
+    // isHidden toggle: allow tutor(owner) and admin
+    if (isHidden !== undefined) updates.isHidden = isHidden === true;
+
+    // Only admin can change these sensitive fields (kept for backward compatibility)
+    if (role === "admin") {
+      if (instructor !== undefined) updates.instructor = instructor;
+      if (students !== undefined) updates.students = students;
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ success: false, message: "No valid fields to update" });
@@ -223,108 +309,33 @@ export async function updateCourse(req, res) {
 export async function deleteCourse(req, res) {
   try {
     const { courseId } = req.params;
+
+    const course = await CourseDB.findByCourseId(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const actor = req.user || null;
+    const role = (actor?.role || "").toLowerCase();
+
+    const isOwnerTutor =
+      role === "tutor" &&
+      actor?.userName &&
+      course?.instructor &&
+      String(course.instructor).toLowerCase() === String(actor.userName).toLowerCase();
+
+    if (!(role === "admin" || isOwnerTutor)) {
+      return res.status(403).json({ success: false, message: "Not allowed to delete this course" });
+    }
+
     const removed = await CourseDB.remove(courseId);
     if (!removed) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
 
-    return res.status(200).json({ success: true, message: "Course deleted", data: removed });
+    return res.status(200).json({ success: true, data: removed });
   } catch (err) {
     console.error("deleteCourse error:", err);
-    return res.status(500).json({ success: false, message: err.message || "Server error" });
-  }
-}
-
-/**
- * POST /api/courses/:courseId/subscribe
- */
-export async function subscribeCourse(req, res) {
-  try {
-    const { courseId } = req.params;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-
-    const [course, user] = await Promise.all([
-      CourseDB.findByCourseId(courseId),
-      UserDB.findById(userId),
-    ]);
-
-    if (!course) {
-      return res.status(404).json({ success: false, message: "Course not found" });
-    }
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const enrolledSet = new Set([...(user.enrolledCourses || []), courseId]);
-    const studentsSet = new Set([...(course.students || []), userId]);
-
-    const [updatedUser, updatedCourse] = await Promise.all([
-      UserDB.updateProfile(userId, { enrolledCourses: Array.from(enrolledSet) }),
-      CourseDB.update(courseId, { students: Array.from(studentsSet) }),
-    ]);
-
-    return res.status(200).json({
-      success: true,
-      message: "Subscribed to course",
-      data: {
-        user: sanitizeUser(updatedUser),
-        course: updatedCourse,
-      },
-    });
-  } catch (err) {
-    console.error("subscribeCourse error:", err);
-    return res.status(500).json({ success: false, message: err.message || "Server error" });
-  }
-}
-
-/**
- * POST /api/courses/:courseId/unsubscribe
- */
-export async function unsubscribeCourse(req, res) {
-  try {
-    const { courseId } = req.params;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-
-    const [course, user] = await Promise.all([
-      CourseDB.findByCourseId(courseId),
-      UserDB.findById(userId),
-    ]);
-
-    if (!course) {
-      return res.status(404).json({ success: false, message: "Course not found" });
-    }
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    const enrolled = (user.enrolledCourses || []).filter((c) => c !== courseId);
-    const students = (course.students || []).filter((s) => s !== userId);
-
-    const [updatedUser, updatedCourse] = await Promise.all([
-      UserDB.updateProfile(userId, { enrolledCourses: enrolled }),
-      CourseDB.update(courseId, { students }),
-    ]);
-
-    return res.status(200).json({
-      success: true,
-      message: "Unsubscribed from course",
-      data: {
-        user: sanitizeUser(updatedUser),
-        course: updatedCourse,
-      },
-    });
-  } catch (err) {
-    console.error("unsubscribeCourse error:", err);
     return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 }

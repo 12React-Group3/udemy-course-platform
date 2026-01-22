@@ -35,6 +35,7 @@ export default function AllCourses() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [visibility, setVisibility] = useState("visible"); 
 
   const loadCourses = async () => {
     try {
@@ -56,9 +57,10 @@ export default function AllCourses() {
     loadCourses();
   }, []);
 
-  // Show all courses
+  // Show only courses that are NOT hidden on Course Page
   const validCourses = useMemo(() => {
-    return coursesRaw;
+    // Backward compatible: if isHidden is missing, treat it as false (visible)
+    return coursesRaw.filter((c) => c?.isHidden !== true);
   }, [coursesRaw]);
 
   // Extract unique categories from courses
@@ -170,8 +172,8 @@ export default function AllCourses() {
             {searchQuery
               ? "Try adjusting your search terms"
               : activeCategory !== "All"
-              ? `No courses in "${activeCategory}" category`
-              : "No video courses are available yet"}
+                ? `No courses in "${activeCategory}" category`
+                : "No video courses are available yet"}
           </p>
         </div>
       ) : (
