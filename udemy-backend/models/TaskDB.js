@@ -1,5 +1,6 @@
 /**
  * Task Database Operations
+ * Tasks are linked to courses via courseUid
  */
 
 import {
@@ -17,18 +18,18 @@ export const TaskDB = {
   /**
    * Create a new task
    */
-  async create({ taskId, courseId, title, description = '', dueDate = null, type = 'quiz', createdBy }) {
+  async create({ courseUid, title, description = '', dueDate = null, type = 'quiz', createdBy }) {
     const now = new Date().toISOString();
-    const tId = taskId || generateId();
+    const taskId = generateId();
 
     const item = {
-      PK: `COURSE#${courseId}`,
-      SK: `TASK#${tId}`,
+      PK: `COURSE#${courseUid}`,
+      SK: `TASK#${taskId}`,
       GSI1PK: 'ENTITY#TASK',
-      GSI1SK: `TASK#${tId}`,
+      GSI1SK: `TASK#${taskId}`,
       entityType: 'TASK',
-      taskId: tId,
-      courseId,
+      taskId,
+      courseUid,
       title,
       description,
       dueDate,
@@ -68,18 +69,18 @@ export const TaskDB = {
   },
 
   /**
-   * Get all tasks for a course
+   * Get all tasks for a course by courseUid
    */
-  async findByCourseId(courseId) {
+  async findByCourseUid(courseUid) {
+    console.log(`Finding tasks for courseUid: ${courseUid}`);
     const result = await docClient.send(new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       ExpressionAttributeValues: {
-        ':pk': `COURSE#${courseId}`,
+        ':pk': `COURSE#${courseUid}`,
         ':sk': 'TASK#',
       },
     }));
-
     return (result.Items || []).map(formatTask);
   },
 
@@ -110,7 +111,7 @@ export const TaskDB = {
   /**
    * Update a task
    */
-  async update(courseId, taskId, updates) {
+  async update(courseUid, taskId, updates) {
     const updateExpressions = [];
     const expressionAttributeNames = {};
     const expressionAttributeValues = {
@@ -144,7 +145,7 @@ export const TaskDB = {
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `COURSE#${courseId}`,
+        PK: `COURSE#${courseUid}`,
         SK: `TASK#${taskId}`,
       },
       UpdateExpression: 'SET ' + updateExpressions.join(', '),
@@ -159,7 +160,7 @@ export const TaskDB = {
   /**
    * Delete a task
    */
-  async remove(courseId, taskId) {
+  async remove(courseUid, taskId) {
     const task = await this.findById(taskId);
     if (!task) {
       return null;
@@ -168,7 +169,7 @@ export const TaskDB = {
     await docClient.send(new DeleteCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `COURSE#${courseId}`,
+        PK: `COURSE#${courseUid}`,
         SK: `TASK#${taskId}`,
       },
     }));

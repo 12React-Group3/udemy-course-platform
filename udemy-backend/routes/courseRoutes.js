@@ -18,20 +18,27 @@ import { tutorOrAdmin, learnerOnly } from "../middleware/authorize.js";
 
 const router = express.Router();
 
-// Public browsing (or keep public for now)
+// Public browsing
 router.get("/", getAllCourses);
+
+// Create course (tutor/admin only)
 router.post("/", protect, createCourse);
+
+// Presign URLs for upload
 router.post("/presign-video", protect, presignVideoUpload);
-router.get("/:courseId/video-url", getCourseVideoUrl);
-router.get("/:courseId", getCourseByCourseId);
+router.post("/presign-thumbnail", protect, presignThumbnailUpload);
 
-// Subscribe/unsubscribe: learner only (single definition!)
+// Course by courseUid (unique identifier)
+router.get("/:courseUid", getCourseByCourseId);
+router.get("/:courseUid/video-url", getCourseVideoUrl);
+router.get("/:courseUid/thumbnail-url", getCourseThumbnailUrl);
 
-// Update/delete: tutor(owner) or admin (controller also checks ownership)
-router.put("/:courseId", protect, tutorOrAdmin, updateCourse);
-router.delete("/:courseId", protect, tutorOrAdmin, deleteCourse);
+// Update/delete: tutor(owner) or admin
+router.put("/:courseUid", protect, tutorOrAdmin, updateCourse);
+router.delete("/:courseUid", protect, tutorOrAdmin, deleteCourse);
 
-router.post("/:courseId/subscribe", protect, learnerOnly, subscribeCourse);
-router.post("/:courseId/unsubscribe", protect, learnerOnly, unsubscribeCourse);
+// Subscribe/unsubscribe: learner only
+router.post("/:courseUid/subscribe", protect, learnerOnly, subscribeCourse);
+router.post("/:courseUid/unsubscribe", protect, learnerOnly, unsubscribeCourse);
 
 export default router;

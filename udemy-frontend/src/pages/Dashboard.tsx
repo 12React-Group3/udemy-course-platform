@@ -80,6 +80,9 @@ function getVideoThumbnail(videoURL: string | undefined): string | null {
 
 // Transform backend course data to frontend format
 function transformCourse(course: ApiCourse): Course {
+  // Use courseUid if available, otherwise fallback to courseId (matches backend's formatCourse)
+  const id = course.courseUid || course.courseId;
+
   // read key safely even if types aren't updated
   const thumbnailKey = (course as any).thumbnailKey || "";
 

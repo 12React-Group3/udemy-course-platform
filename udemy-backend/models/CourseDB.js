@@ -1,5 +1,7 @@
 /**
  * Course Database Operations
+ * Primary key: courseUid (system-generated unique ID)
+ * courseId is kept for display purposes only (user-friendly name)
  */
 
 import {
@@ -39,10 +41,10 @@ export const CourseDB = {
       PK: `COURSE#${courseUid}`,
       SK: `COURSE#${courseUid}`,
       GSI1PK: 'ENTITY#COURSE',
-      GSI1SK: `COURSE#${courseId}`,
+      GSI1SK: `COURSE#${courseUid}`,
       entityType: 'COURSE',
       courseUid,
-      courseId,
+      courseId, // user-friendly display name only
       title,
       description,
       videoURL,
@@ -67,78 +69,20 @@ export const CourseDB = {
   },
 
   /**
-   * Find course by courseId
+   * Find course by courseUid (primary method - direct PK lookup)
    */
-  async findByCourseId(courseId) {
-    const q = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAME,
-        IndexName: "GSI1",
-        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "ENTITY#COURSE",
-          ":sk": `COURSE#${courseId}`,
-        },
-        // IMPORTANT: ensure we have PK/SK even if GSI projection is limited
-        ProjectionExpression: "PK, SK",
-      })
-    );
-
-    if (!q.Items || q.Items.length === 0) return null;
-
-    const { PK, SK } = q.Items[0];
-    if (!PK || !SK) return null;
-
-    const g = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAME,
-        Key: { PK, SK },
-      })
-    );
-
-    return g.Item ? formatCourse(g.Item) : null;
-  },
-
-  /**
-   * Find course by courseUid or courseId
-   */
-  async findByCourseKey(courseKey) {
-    if (!courseKey) return null;
+  async findByCourseUid(courseUid) {
+    if (!courseUid) return null;
 
     const result = await docClient.send(new GetCommand({
       TableName: TABLE_NAME,
       Key: {
-        PK: `COURSE#${courseKey}`,
-        SK: `COURSE#${courseKey}`,
+        PK: `COURSE#${courseUid}`,
+        SK: `COURSE#${courseUid}`,
       },
     }));
 
-    if (result.Item) {
-      return formatCourse(result.Item);
-    }
-
-    return await this.findByCourseId(courseKey);
-  },
-
-  /**
-   * Find course by courseUid or courseId
-   */
-  async findByCourseKey(courseKey) {
-    if (!courseKey) return null;
-
-    const result = await docClient.send(new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `COURSE#${courseKey}`,
-        SK: `COURSE#${courseKey}`,
-      },
-    }));
-
-    if (result.Item) {
-      return formatCourse(result.Item);
-    }
-
-    return await this.findByCourseId(courseKey);
+    return result.Item ? formatCourse(result.Item) : null;
   },
 
   /**
@@ -158,35 +102,14 @@ export const CourseDB = {
   },
 
   /**
-   * Check if course exists
+   * Update course by courseUid
    */
-  async exists(courseId) {
-    const course = await this.findByCourseId(courseId);
-    return course !== null;
-  },
+  async update(courseUid, updates) {
+    if (!courseUid) return null;
 
-  /**
-   * Update course
-   */
-  async update(courseId, updates) {
-    // Resolve PK/SK first (don’t reconstruct keys)
-    const q = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAME,
-        IndexName: "GSI1",
-        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "ENTITY#COURSE",
-          ":sk": `COURSE#${courseId}`,
-        },
-        ProjectionExpression: "PK, SK",
-      })
-    );
-
-    if (!q.Items || q.Items.length === 0) return null;
-
-    const { PK, SK } = q.Items[0];
-    if (!PK || !SK) return null;
+    // Verify course exists
+    const existing = await this.findByCourseUid(courseUid);
+    if (!existing) return null;
 
     const updateExpressions = [];
     const expressionAttributeNames = {};
@@ -228,11 +151,6 @@ export const CourseDB = {
       expressionAttributeValues[':instructorId'] = updates.instructorId;
     }
 
-    if (updates.instructorId !== undefined) {
-      updateExpressions.push('instructorId = :instructorId');
-      expressionAttributeValues[':instructorId'] = updates.instructorId;
-    }
-
     if (updates.students !== undefined) {
       updateExpressions.push("students = :students");
       expressionAttributeValues[":students"] = updates.students;
@@ -253,7 +171,9 @@ export const CourseDB = {
       expressionAttributeValues[":thumbnailKey"] = updates.thumbnailKey;
     }
 
-    // (Optional but recommended) keep updatedAt
+    if (updateExpressions.length === 0) return existing;
+
+    // Add updatedAt
     const now = new Date().toISOString();
     updateExpressions.push("updatedAt = :updatedAt");
     expressionAttributeValues[":updatedAt"] = now;
@@ -261,7 +181,10 @@ export const CourseDB = {
     const result = await docClient.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
-        Key: { PK, SK },
+        Key: {
+          PK: `COURSE#${courseUid}`,
+          SK: `COURSE#${courseUid}`,
+        },
         UpdateExpression: "SET " + updateExpressions.join(", "),
         ExpressionAttributeNames:
           Object.keys(expressionAttributeNames).length > 0
@@ -276,40 +199,22 @@ export const CourseDB = {
   },
 
   /**
-   * Delete course by courseId
+   * Delete course by courseUid
    */
-  async remove(courseId) {
-    const q = await docClient.send(
-      new QueryCommand({
-        TableName: TABLE_NAME,
-        IndexName: "GSI1",
-        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
-        ExpressionAttributeValues: {
-          ":pk": "ENTITY#COURSE",
-          ":sk": `COURSE#${courseId}`,
-        },
-        ProjectionExpression: "PK, SK",
-      })
-    );
+  async remove(courseUid) {
+    if (!courseUid) return null;
 
-    if (!q.Items || q.Items.length === 0) return null;
-
-    const { PK, SK } = q.Items[0];
-    if (!PK || !SK) return null;
-
-    // Read the full item first so we can return it (same behavior as before)
-    const g = await docClient.send(
-      new GetCommand({
-        TableName: TABLE_NAME,
-        Key: { PK, SK },
-      })
-    );
-    const existing = g.Item ? formatCourse(g.Item) : null;
+    // Read the full item first so we can return it
+    const existing = await this.findByCourseUid(courseUid);
+    if (!existing) return null;
 
     await docClient.send(
       new DeleteCommand({
         TableName: TABLE_NAME,
-        Key: { PK, SK },
+        Key: {
+          PK: `COURSE#${courseUid}`,
+          SK: `COURSE#${courseUid}`,
+        },
       })
     );
 

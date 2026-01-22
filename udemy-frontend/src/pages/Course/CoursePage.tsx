@@ -1,4 +1,4 @@
-// src/pages/Course/CoursePage.jsx
+// src/pages/Course/CoursePage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
@@ -10,27 +10,45 @@ import {
 import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
 import { fetchTasksByCourseId } from "../../api/tasks";
+import type { ApiCourse } from "../../types";
+
+// Extended course type with additional fields from API
+interface CourseData extends ApiCourse {
+  id?: string;
+}
+
+// Task type for this page
+interface Task {
+  taskId?: string;
+  _id?: string;
+  title?: string;
+  taskName?: string;
+  description?: string;
+}
 
 export default function CoursePage() {
-  const { courseId } = useParams();
+  // Route param is :courseUid (matches the route definition in AppRoutes.jsx)
+  const { courseUid: courseId } = useParams<{ courseUid: string }>();
 
-  const [course, setCourse] = useState(null);
+  const [course, setCourse] = useState<CourseData | null>(null);
   const [videoSrc, setVideoSrc] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   // subscription state
-  const [enrolledSet, setEnrolledSet] = useState(new Set());
+  const [enrolledSet, setEnrolledSet] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
 
-  // NEW: tasks state
-  const [tasksRaw, setTasksRaw] = useState([]);
+  // Tasks state
+  const [tasksRaw, setTasksRaw] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksErr, setTasksErr] = useState("");
 
   const learner = isLearner();
-  const subscribed = useMemo(() => enrolledSet.has(courseId), [enrolledSet, courseId]);
+  // Use the course's actual id (courseUid) for subscription check, not the URL param
+  const courseUid = course?.id || course?.courseUid || courseId || "";
+  const subscribed = useMemo(() => courseUid ? enrolledSet.has(courseUid) : false, [enrolledSet, courseUid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,15 +90,19 @@ export default function CoursePage() {
           const tRes = await fetchTasksByCourseId(courseId);
           const list = tRes.data?.data || tRes.data || [];
           if (!cancelled) setTasksRaw(Array.isArray(list) ? list : []);
-        } catch (te) {
+        } catch (te: unknown) {
           if (!cancelled) {
-            setTasksErr(te.response?.data?.message || te.message || "Failed to load tasks");
+            const taskError = te as { response?: { data?: { message?: string } }; message?: string };
+            setTasksErr(taskError.response?.data?.message || taskError.message || "Failed to load tasks");
           }
         } finally {
           if (!cancelled) setTasksLoading(false);
         }
-      } catch (e) {
-        if (!cancelled) setErr(e.response?.data?.error || e?.message || "Something went wrong");
+      } catch (e: unknown) {
+        if (!cancelled) {
+          const error = e as { response?: { data?: { error?: string } }; message?: string };
+          setErr(error.response?.data?.error || error.message || "Something went wrong");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -93,29 +115,34 @@ export default function CoursePage() {
   }, [courseId]);
 
   const onToggleSubscribe = async () => {
+    // Use courseUid for subscription API calls
+    const subKey = course?.id || course?.courseUid || courseId || "";
+    if (!subKey) return;
+
     try {
       setBusy(true);
       setToast("");
 
       if (subscribed) {
-        const res = await unsubscribeCourse(courseId);
+        const res = await unsubscribeCourse(subKey);
         if (!res.data?.success) throw new Error(res.data?.message || "Unsubscribe failed");
 
         const next = new Set(enrolledSet);
-        next.delete(courseId);
+        next.delete(subKey);
         setEnrolledSet(next);
         setToast("Unsubscribed.");
       } else {
-        const res = await subscribeCourse(courseId);
+        const res = await subscribeCourse(subKey);
         if (!res.data?.success) throw new Error(res.data?.message || "Subscribe failed");
 
         const next = new Set(enrolledSet);
-        next.add(courseId);
+        next.add(subKey);
         setEnrolledSet(next);
         setToast("Subscribed! You can access the course now.");
       }
-    } catch (e) {
-      setToast(e.response?.data?.message || e.message || "Action failed");
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { message?: string } }; message?: string };
+      setToast(error.response?.data?.message || error.message || "Action failed");
     } finally {
       setBusy(false);
       setTimeout(() => setToast(""), 2500);
@@ -237,7 +264,7 @@ export default function CoursePage() {
             </div>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
-              {tasksRaw.map((t) => (
+              {tasksRaw.map((t: Task) => (
                 <div
                   key={t.taskId || t._id}
                   style={{
@@ -263,7 +290,7 @@ export default function CoursePage() {
 
                   {/* Button to task detail page */}
                   <Link
-                    to={`/tasks/${encodeURIComponent(t.taskId || t._id)}`}
+                    to={`/tasks/${encodeURIComponent(t.taskId || t._id || "")}`}
                     style={{
                       padding: "8px 12px",
                       borderRadius: 10,
@@ -309,7 +336,11 @@ export default function CoursePage() {
   );
 }
 
-function VideoPlayer({ url }) {
+interface VideoPlayerProps {
+  url: string;
+}
+
+function VideoPlayer({ url }: VideoPlayerProps) {
   return (
     <video
       src={url}

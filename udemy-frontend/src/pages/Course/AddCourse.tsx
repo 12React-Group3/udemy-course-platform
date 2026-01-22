@@ -122,6 +122,19 @@ export default function AddCourse({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const requestClose = () => {
+    if (loading) return;
+
+    if (!isDirty) {
+      onClose?.();
+      return;
+    }
+
+    const ok = window.confirm("You have unsaved changes. Discard them and close?");
+    if (ok) onClose?.();
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -154,7 +167,7 @@ export default function AddCourse({
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [isOpen, requestClose]);
+  }, [isOpen, isDirty, loading]);
 
   if (!isOpen) return null;
 
@@ -308,11 +321,11 @@ export default function AddCourse({
   }
 
   function handleBackdropClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) requestClose();
+    if (e.target === e.currentTarget && !loading) requestClose();
   }
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop" onClick={handleBackdropClick}>
       <div className="modal-container">
         <div className="modal-header">
           <h2 className="modal-title">Create New Course</h2>

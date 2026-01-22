@@ -82,8 +82,10 @@ export default function AddTask({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Use course.id (courseUid) for the form value
+      const firstCourseUid = courses.length > 0 ? (courses[0].id || courses[0].courseUid || courses[0].courseId) : "";
       setForm({
-        courseId: courses.length > 0 ? courses[0].courseId : "",
+        courseId: firstCourseUid,
         title: "",
         description: "",
         type: "quiz",
@@ -203,8 +205,12 @@ export default function AddTask({
     try {
       setLoading(true);
 
+      // Send courseUid explicitly (form.courseId contains the courseUid value)
       const taskData = {
-        ...form,
+        courseUid: form.courseId, // This is actually courseUid
+        title: form.title,
+        description: form.description,
+        type: form.type,
         dueDate: form.dueDate || null,
         questions: questions.map((q) => ({
           questionText: q.questionText,
@@ -270,11 +276,15 @@ export default function AddTask({
                   disabled={loading}
                 >
                   {courses.length === 0 && <option value="">No courses found</option>}
-                  {courses.map((course) => (
-                    <option key={course.courseId} value={course.courseId}>
-                      {course.title}
-                    </option>
-                  ))}
+                  {courses.map((course) => {
+                    // Use course.id (courseUid) as the value
+                    const courseUid = course.id || course.courseUid || course.courseId;
+                    return (
+                      <option key={courseUid} value={courseUid}>
+                        {course.title}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <div className="task-form-group">

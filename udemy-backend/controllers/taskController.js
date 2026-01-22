@@ -1,6 +1,7 @@
 /**
  * Task Controller
  * Handles task and question CRUD operations
+ * Tasks are linked to courses via courseUid
  */
 
 import { TaskDB, QuestionDB, CourseDB, TaskRecordDB, UserDB } from '../models/index.js';
@@ -47,15 +48,15 @@ export async function getAllTasks(req, res) {
 }
 
 /**
- * GET /api/tasks/course/:courseId
+ * GET /api/tasks/course/:courseUid
  * Get all tasks for a specific course
  */
 export async function getTasksByCourse(req, res) {
   try {
-    const { courseId } = req.params;
+    const { courseUid } = req.params;
 
     // Verify course exists
-    const course = await CourseDB.findByCourseId(courseId);
+    const course = await CourseDB.findByCourseUid(courseUid);
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -63,7 +64,8 @@ export async function getTasksByCourse(req, res) {
       });
     }
 
-    const tasks = await TaskDB.findByCourseId(courseId);
+    // Get tasks for this course
+    const tasks = await TaskDB.findByCourseUid(courseUid);
 
     // Fetch questions for each task
     const tasksWithQuestions = await Promise.all(
@@ -120,23 +122,23 @@ export async function getTaskById(req, res) {
 /**
  * POST /api/tasks
  * Create a new task with questions (tutor only)
- * Body: { courseId, title, description, dueDate, type, questions: [...] }
+ * Body: { courseUid, title, description, dueDate, type, questions: [...] }
  */
 export async function createTask(req, res) {
   try {
-    const { courseId, title, description, dueDate, type, questions } = req.body;
+    const { courseUid, title, description, dueDate, type, questions } = req.body;
     const userId = req.user.id;
 
     // Validate required fields
-    if (!courseId || !title) {
+    if (!courseUid || !title) {
       return res.status(400).json({
         success: false,
-        message: 'courseId and title are required',
+        message: 'courseUid and title are required',
       });
     }
 
     // Verify course exists
-    const course = await CourseDB.findByCourseId(courseId);
+    const course = await CourseDB.findByCourseUid(courseUid);
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -153,7 +155,7 @@ export async function createTask(req, res) {
 
     // Create the task
     const task = await TaskDB.create({
-      courseId,
+      courseUid,
       title,
       description: description || '',
       dueDate: dueDate || null,
@@ -236,7 +238,7 @@ export async function updateTask(req, res) {
       });
     }
 
-    const updatedTask = await TaskDB.update(task.courseId, taskId, updates);
+    const updatedTask = await TaskDB.update(task.courseUid, taskId, updates);
     const questions = await QuestionDB.findByTaskId(taskId);
 
     return res.status(200).json({
@@ -283,7 +285,7 @@ export async function deleteTask(req, res) {
     await QuestionDB.removeByTaskId(taskId);
 
     // Delete the task
-    await TaskDB.remove(task.courseId, taskId);
+    await TaskDB.remove(task.courseUid, taskId);
 
     return res.status(200).json({
       success: true,
@@ -547,7 +549,7 @@ export async function getTaskRecords(req, res) {
     }
 
     // Get the course to find enrolled students
-    const course = await CourseDB.findByCourseId(task.courseId);
+    const course = await CourseDB.findByCourseUid(task.courseUid);
     const enrolledStudentIds = course?.students || [];
 
     // Get task records (submissions)
@@ -613,7 +615,7 @@ export async function getMySubmissions(req, res) {
         const task = await TaskDB.findById(record.taskId);
         return {
           ...record,
-          task: task ? { taskId: task.taskId, title: task.title, courseId: task.courseId } : null,
+          task: task ? { taskId: task.taskId, title: task.title, courseUid: task.courseUid } : null,
         };
       })
     );

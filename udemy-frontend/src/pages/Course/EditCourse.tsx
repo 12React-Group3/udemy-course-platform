@@ -108,7 +108,8 @@ export default function EditCourse({ isOpen, onClose, onSuccess, course }: EditC
     const [message, setMessage] = useState("");
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    const courseId = course?.courseId || course?.id || "";
+    // Prefer course.id (courseUid) for API calls since it's the unique identifier
+    const courseId = course?.id || course?.courseUid || course?.courseId || "";
 
     // init once per open + courseId
     const initializedForCourseIdRef = useRef < string | null > (null);
