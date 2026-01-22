@@ -491,7 +491,8 @@ export async function submitTask(req, res) {
 
     // Calculate score
     let correctCount = 0;
-    const gradedResponses = responses.map((r) => {
+    const safeResponses = Array.isArray(responses) ? responses : [];
+    const gradedResponses = safeResponses.map((r) => {
       const question = questions.find((q) => q.questionId === r.questionId);
       const isCorrect = question && question.correctAnswer === r.answer;
       if (isCorrect) correctCount++;

@@ -9,9 +9,12 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import AppLayout from "../components/AppLayout";
 import AdminRoute from "../components/AdminRoute";
 import TutorRoute from "../components/TutorRoute";
+import LearnerRoute from "../components/LearnerRoute";
 import Dashboard from "../pages/Dashboard";
 import TasksPage from "../pages/Tasks/TasksPage";
 import TaskDetailPage from "../pages/Tasks/TaskDetailPage";
+import TakeTaskPage from "../pages/Tasks/TakeTaskPage";
+import TaskResultPage from "../pages/Tasks/TaskResultPage";
 import AdminPage from "../pages/Admin/AdminPage";
 import SubscribersPage from "../pages/Subscribers/SubscribersPage";
 
@@ -46,6 +49,22 @@ export default function AppRoutes() {
 
         {/* Tasks */}
         <Route path="/tasks" element={<TasksPage />} />
+        <Route
+          path="/tasks/:taskId/take"
+          element={
+            <LearnerRoute>
+              <TakeTaskPage />
+            </LearnerRoute>
+          }
+        />
+        <Route
+          path="/tasks/:taskId/result"
+          element={
+            <LearnerRoute>
+              <TaskResultPage />
+            </LearnerRoute>
+          }
+        />
         <Route
           path="/tasks/:taskId"
           element={
