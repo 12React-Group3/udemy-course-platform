@@ -37,4 +37,10 @@ export const API_PATHS = {
     SUBMIT: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/submit`,
     GET_RECORDS: (taskId) => `${BASE_URL}/api/tasks/${encodeURIComponent(taskId)}/records`,
   },
+  USERS: {
+    GET_ALL: `${BASE_URL}/api/users`,
+    DELETE: (userId) => `${BASE_URL}/api/users/${encodeURIComponent(userId)}`,
+    UPDATE_ROLE: (userId) => `${BASE_URL}/api/users/${encodeURIComponent(userId)}/role`,
+    MY_STUDENTS: `${BASE_URL}/api/users/my-students`,
+  },
 };
