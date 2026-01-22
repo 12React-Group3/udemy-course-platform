@@ -33,3 +33,57 @@ export interface ApiResponse<T> {
   message?: string;
   data: T;
 }
+
+// User types
+export type UserRole = 'admin' | 'tutor' | 'learner';
+
+export interface User {
+  id: string;
+  userName: string;
+  email: string;
+  role: UserRole;
+  profileImage?: string | null;
+  enrolledCourses?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// User management API responses
+export interface GetAllUsersResponse {
+  success: boolean;
+  data: User[];
+  count: number;
+}
+
+export interface DeleteUserResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface UpdateRoleResponse {
+  success: boolean;
+  data: User;
+  message: string;
+}
+
+// Course subscriber (student) info for tutors
+export interface CourseSubscriber {
+  id: string;
+  userName: string;
+  email: string;
+  profileImage?: string | null;
+  enrolledAt?: string;
+}
+
+export interface CourseWithStudents {
+  courseId: string;
+  courseTitle: string;
+  students: CourseSubscriber[];
+  studentCount: number;
+}
+
+export interface GetMyStudentsResponse {
+  success: boolean;
+  data: CourseWithStudents[];
+  totalStudents: number;
+}

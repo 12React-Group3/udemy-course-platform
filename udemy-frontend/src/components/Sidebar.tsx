@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, CheckSquare, Shield } from 'lucide-react';
-import { isAdmin, getRole, logout } from '../auth/authStore';
+import { Home, BookOpen, CheckSquare, Shield, Users } from 'lucide-react';
+import { isAdmin, isTutor, getRole, logout } from '../auth/authStore';
 import './Sidebar.css';
 
 type NavItem = {
@@ -18,6 +18,8 @@ const navItems: NavItem[] = [
 
 const adminItems: NavItem[] = [{ label: 'Admin', to: '/admin', icon: <Shield size={18} /> }];
 
+const tutorItems: NavItem[] = [{ label: 'Subscribers', to: '/subscribers', icon: <Users size={18} /> }];
+
 export type SidebarProps = {
   /** Mobile drawer open/close */
   isOpen: boolean;
@@ -29,6 +31,7 @@ export type SidebarProps = {
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }: SidebarProps) {
   const showAdmin = isAdmin();
+  const showTutor = isTutor();
   const role = getRole();
   const navigate = useNavigate();
 
@@ -80,6 +83,25 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
           ))}
         </nav>
 
+        {showTutor && (
+          <>
+            <div className="sb-divider" />
+            <div className="sb-sectionLabel">Tutor</div>
+
+            {tutorItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
+                onClick={onClose}
+              >
+                <span className="sb-icon" aria-hidden="true">{item.icon}</span>
+                <span className="sb-label">{item.label}</span>
+              </NavLink>
+            ))}
+          </>
+        )}
+
         {showAdmin && (
           <>
             <div className="sb-divider" />
@@ -89,13 +111,13 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
               <NavLink
                 key={item.to}
                 to={item.to}
-              className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
-              onClick={onClose}
-            >
-              <span className="sb-icon" aria-hidden="true">{item.icon}</span>
-              <span className="sb-label">{item.label}</span>
-            </NavLink>
-          ))}
+                className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
+                onClick={onClose}
+              >
+                <span className="sb-icon" aria-hidden="true">{item.icon}</span>
+                <span className="sb-label">{item.label}</span>
+              </NavLink>
+            ))}
           </>
         )}
 
