@@ -354,6 +354,16 @@ export default function Dashboard() {
     return ["All", ...unique];
   }, [roleCourses]);
 
+  // Category counts for displaying in tabs
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: roleCourses.length };
+    roleCourses.forEach((c) => {
+      const cat = c.category || "Uncategorized";
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [roleCourses]);
+
   // ✅ Apply category + visibility + time
   const filteredCourses = useMemo(() => {
     let base =
@@ -589,8 +599,24 @@ export default function Dashboard() {
               key={category}
               className={`category-tab ${activeCategory === category ? "active" : ""}`}
               onClick={() => setActiveCategory(category)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}
             >
-              {category}
+              <span>{category}</span>
+              <span
+                className="category-count"
+                style={{
+                  background: '#e0e7ff',
+                  color: '#3730a3',
+                  borderRadius: '1em',
+                  padding: '0.2em 0.7em',
+                  fontWeight: 'bold',
+                  marginLeft: '0.3em',
+                  fontSize: '0.95em',
+                  boxShadow: '0 1px 4px rgba(55,48,163,0.08)'
+                }}
+              >
+                {categoryCounts[category] || 0}
+              </span>
             </button>
           ))}
         </div>

@@ -1,9 +1,14 @@
 import TutorTasksPage from "./TutorTasksPage";
 import LearnerTasksPage from "./LearnerTasksPage";
-import { isTutor, isLearner } from "../../auth/authStore";
+import AdminTasksPage from "./AdminTasksPage";
+import { isTutor, isLearner, isAdmin } from "../../auth/authStore";
 import "./TutorTasksPage.css";
 
 export default function TasksPage() {
+  if (isAdmin()) {
+    return <AdminTasksPage />;
+  }
+
   if (isTutor()) {
     return <TutorTasksPage />;
   }

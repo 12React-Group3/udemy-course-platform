@@ -26,17 +26,49 @@ export async function getAllTasks(req, res) {
       tasks = await TaskDB.findAll();
     }
 
-    // Fetch questions for each task
-    const tasksWithQuestions = await Promise.all(
+    // Fetch questions and course info for each task
+    const tasksWithDetails = await Promise.all(
       tasks.map(async (task) => {
         const questions = await QuestionDB.findByTaskId(task.taskId);
-        return { ...task, questions };
+
+        // Fetch course info to include course title
+        let courseTitle = '';
+        let courseInfo = null;
+        if (task.courseUid) {
+          const course = await CourseDB.findByCourseUid(task.courseUid);
+          if (course) {
+            courseTitle = course.title || '';
+            courseInfo = {
+              courseUid: course.courseUid,
+              courseId: course.courseId,
+              title: course.title,
+              instructor: course.instructor,
+            };
+          }
+        }
+
+        // Fetch creator info
+        let creatorName = '';
+        if (task.createdBy) {
+          const creator = await UserDB.findById(task.createdBy);
+          if (creator) {
+            creatorName = creator.userName || '';
+          }
+        }
+
+        return {
+          ...task,
+          questions,
+          courseTitle,
+          course: courseInfo,
+          creatorName,
+        };
       })
     );
 
     return res.status(200).json({
       success: true,
-      data: tasksWithQuestions,
+      data: tasksWithDetails,
     });
   } catch (err) {
     console.error('getAllTasks error:', err);
