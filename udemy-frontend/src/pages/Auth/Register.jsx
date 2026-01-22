@@ -27,7 +27,6 @@ const Register = () => {
             }
 
             const response = await register(formData);
-            console.log('Registration successful:', response.data);
 
             // Get token from response
             const token = response.data?.data?.token;
@@ -40,7 +39,6 @@ const Register = () => {
             // Redirect to profile page
             navigate('/profile');
         } catch (err) {
-            console.error('Registration error:', err.response ? err.response.data : err.message);
             setError(err.response?.data?.error || err.message || 'Registration failed. Please try again.');
         }
     };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllCourses, subscribeCourse, unsubscribeCourse } from "../../api/courses";
+import { fetchAllCourses, fetchCourseThumbnailUrl, subscribeCourse, unsubscribeCourse } from "../../api/courses";
 import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
 import "./AllCourses.css";
@@ -24,9 +24,39 @@ function getYouTubeThumbnail(videoURL) {
   }
 }
 
-// Get thumbnail URL for a course (S3 thumbnail > YouTube thumbnail > null)
+async function attachSignedThumbnails(rawCourses) {
+  const targets = rawCourses.filter((c) => c?.thumbnailKey);
+
+  if (targets.length === 0) return rawCourses;
+
+  const pairs = await Promise.all(
+    targets.map(async (c) => {
+      try {
+        const res = await fetchCourseThumbnailUrl(c.courseId);
+        const signedUrl = res.data?.data?.signedUrl;
+        return [c.courseId, signedUrl || null];
+      } catch {
+        return [c.courseId, null];
+      }
+    })
+  );
+
+  const map = new Map();
+  for (const [id, url] of pairs) if (url) map.set(id, url);
+
+  // add a field the UI can use
+  return rawCourses.map((c) =>
+    map.has(c.courseId) ? { ...c, signedThumbnailUrl: map.get(c.courseId) } : c
+  );
+}
+
 function getCourseThumbnail(course) {
+  // signed URL first
+  if (course.signedThumbnailUrl) return course.signedThumbnailUrl;
+
+  // (optional) if you still sometimes store a public url, keep it as fallback
   if (course.thumbnailUrl) return course.thumbnailUrl;
+
   if (course.videoURL) return getYouTubeThumbnail(course.videoURL);
   return null;
 }
@@ -58,7 +88,9 @@ export default function AllCourses() {
 
       if (!coursesRes.data?.success) throw new Error(coursesRes.data?.message || "Failed to load courses");
 
-      setCoursesRaw(Array.isArray(coursesRes.data.data) ? coursesRes.data.data : []);
+      const raw = Array.isArray(coursesRes.data.data) ? coursesRes.data.data : [];
+      const withThumbs = await attachSignedThumbnails(raw);
+      setCoursesRaw(withThumbs);
 
       const enrolled = profileRes?.data?.data?.user?.enrolledCourses || [];
       setEnrolledSet(new Set(enrolled));
@@ -233,8 +265,8 @@ export default function AllCourses() {
             {searchQuery
               ? "Try adjusting your search terms"
               : activeCategory !== "All"
-              ? `No courses in "${activeCategory}" category`
-              : "No video courses are available yet"}
+                ? `No courses in "${activeCategory}" category`
+                : "No video courses are available yet"}
           </p>
         </div>
       ) : (
@@ -318,8 +350,8 @@ export default function AllCourses() {
                         {busyCourseId === course.courseId
                           ? "Please wait..."
                           : subscribed
-                          ? "Unsubscribe"
-                          : "Subscribe"}
+                            ? "Unsubscribe"
+                            : "Subscribe"}
                       </button>
                     </div>
                   )}
