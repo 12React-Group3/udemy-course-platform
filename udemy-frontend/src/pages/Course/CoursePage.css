@@ -144,19 +144,19 @@
   color: #b91c1c;
 }
 
-.course-description {
-  margin-top: 24px;
-  font-size: 16px;
-  line-height: 1.7;
-  color: var(--color-text, #1f2937);
+.course-header-card .course-description {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-muted, #475569);
 }
 
-.course-description--faint {
+.course-header-card .course-description--faint {
   color: var(--color-muted, #94a3b8);
 }
 
 .course-section {
-  margin-top: 28px;
+  margin-top: 8px;
 }
 
 .section-card {

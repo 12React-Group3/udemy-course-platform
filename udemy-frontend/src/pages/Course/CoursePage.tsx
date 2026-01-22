@@ -202,8 +202,14 @@ export default function CoursePage() {
                 </>
               ) : null}
             </div>
+            <div className="course-description">
+              {course.description ? (
+                <p>{course.description}</p>
+              ) : (
+                <p className="course-description--faint">This course doesn’t have a description yet.</p>
+              )}
+            </div>
           </div>
-
           {learner ? (
             <div className="course-header-actions">
               <span className={`course-status-badge ${subscribed ? "course-status-badge--active" : ""}`}>
@@ -219,15 +225,6 @@ export default function CoursePage() {
             </div>
           ) : null}
         </div>
-
-        <div className="course-description">
-          {course.description ? (
-            <p>{course.description}</p>
-          ) : (
-            <p className="course-description--faint">This course doesn’t have a description yet.</p>
-          )}
-        </div>
-
         <section className="course-section">
           <div className="section-card">
             <div className="section-heading">
