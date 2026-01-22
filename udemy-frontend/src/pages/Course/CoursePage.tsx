@@ -9,7 +9,7 @@ import {
 } from "../../api/courses";
 import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
-import { fetchTasksByCourseId } from "../../api/tasks";
+import { fetchTasksByCourseId, fetchMySubmissions } from "../../api/tasks";
 import type { ApiCourse } from "../../types";
 import "./CoursePage.css";
 
@@ -25,6 +25,15 @@ interface Task {
   title?: string;
   taskName?: string;
   description?: string;
+  type?: string;
+  dueDate?: string | null;
+  questions?: Array<{ questionId: string }>;
+}
+
+// Submission record type
+interface TaskRecord {
+  taskId: string;
+  score: number;
 }
 
 export default function CoursePage() {
@@ -46,6 +55,9 @@ export default function CoursePage() {
   const [tasksRaw, setTasksRaw] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksErr, setTasksErr] = useState("");
+
+  // Submissions state (to check completion)
+  const [submissions, setSubmissions] = useState<Map<string, TaskRecord>>(new Map());
 
   const learner = isLearner();
   const locationState = (location.state as { from?: string } | null) ?? null;
@@ -99,12 +111,26 @@ export default function CoursePage() {
           if (!cancelled) setVideoSrc(v.data.data.signedUrl);
         }
 
-        // load tasks
+        // load tasks and submissions
         try {
           if (!cancelled) setTasksLoading(true);
-          const tRes = await fetchTasksByCourseId(courseId);
+          const [tRes, subRes] = await Promise.all([
+            fetchTasksByCourseId(courseId),
+            fetchMySubmissions().catch(() => null),
+          ]);
           const list = tRes.data?.data || tRes.data || [];
           if (!cancelled) setTasksRaw(Array.isArray(list) ? list : []);
+
+          // Build submissions map
+          if (subRes?.data?.success && !cancelled) {
+            const map = new Map<string, TaskRecord>();
+            (subRes.data.data || []).forEach((record: TaskRecord) => {
+              if (record.taskId) {
+                map.set(record.taskId, record);
+              }
+            });
+            setSubmissions(map);
+          }
         } catch (te: unknown) {
           if (!cancelled) {
             const taskError = te as { response?: { data?: { message?: string } }; message?: string };
@@ -252,43 +278,6 @@ export default function CoursePage() {
         <section className="course-section">
           <div className="section-card">
             <div className="section-heading">
-              <h2>Tasks</h2>
-            </div>
-
-            <div className="section-body">
-              {tasksLoading ? (
-                <div className="placeholder-card">Loading tasks...</div>
-              ) : tasksErr ? (
-                <div className="placeholder-card placeholder-card--error">{tasksErr}</div>
-              ) : tasksRaw.length === 0 ? (
-                <div className="placeholder-card">No tasks right now.</div>
-              ) : (
-                <div className="tasks-grid">
-                  {tasksRaw.map((t: Task) => {
-                    const targetId = encodeURIComponent(t.taskId || t._id || "");
-                    return (
-                      <Link key={t.taskId || t._id} className="task-card" to={`/tasks/${targetId}`}>
-                        <div>
-                          <p className="task-card-title">
-                            {t.title || t.taskName || `Task ${t.taskId || t._id}`}
-                          </p>
-                          {t.description ? (
-                            <p className="task-card-description">{t.description}</p>
-                          ) : null}
-                        </div>
-                        <span className="task-card-link-text">View task →</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="course-section">
-          <div className="section-card">
-            <div className="section-heading">
               <h2>Course Video</h2>
             </div>
 
@@ -301,6 +290,80 @@ export default function CoursePage() {
                 <p className="placeholder-card">Loading video...</p>
               ) : (
                 <VideoPlayer url={videoSrc} />
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="course-section">
+          <div className="section-card">
+            <div className="section-heading">
+              <h2>Tasks</h2>
+              {tasksRaw.length > 0 && (
+                <span className="section-count">{tasksRaw.length} tasks</span>
+              )}
+            </div>
+
+            <div className="section-body">
+              {tasksLoading ? (
+                <div className="placeholder-card">Loading tasks...</div>
+              ) : tasksErr ? (
+                <div className="placeholder-card placeholder-card--error">{tasksErr}</div>
+              ) : tasksRaw.length === 0 ? (
+                <div className="placeholder-card">No tasks right now.</div>
+              ) : (
+                <div className="tasks-list">
+                  {tasksRaw.map((t: Task) => {
+                    const taskId = t.taskId || t._id || "";
+                    const targetId = encodeURIComponent(taskId);
+                    const record = submissions.get(taskId);
+                    const isCompleted = !!record;
+                    const targetPath = learner
+                      ? isCompleted
+                        ? `/tasks/${targetId}/result`
+                        : `/tasks/${targetId}/take`
+                      : `/tasks/${targetId}`;
+
+                    return (
+                      <Link
+                        key={taskId}
+                        className={`task-item ${isCompleted ? "task-item--completed" : ""}`}
+                        to={targetPath}
+                      >
+                        <div className="task-item-left">
+                          {learner && (
+                            <span className={`task-item-status ${isCompleted ? "done" : "pending"}`}>
+                              {isCompleted ? (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" />
+                                </svg>
+                              )}
+                            </span>
+                          )}
+                          <div className="task-item-info">
+                            <span className="task-item-title">
+                              {t.title || t.taskName || `Task ${taskId}`}
+                            </span>
+                            <span className="task-item-meta">
+                              {t.type && <span className="task-item-type">{t.type}</span>}
+                              <span>{t.questions?.length || 0} questions</span>
+                              {learner && isCompleted && record && (
+                                <span className="task-item-score">{record.score}%</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="task-item-action">
+                          {learner ? (isCompleted ? "View Result" : "Start") : "View"}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
