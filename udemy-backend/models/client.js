@@ -9,8 +9,8 @@ import {
   UpdateCommand,
   DeleteCommand,
   ScanCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { docClient, TABLE_NAME } from '../config/dynamodb.js';
+} from "@aws-sdk/lib-dynamodb";
+import { docClient, TABLE_NAME } from "../config/dynamodb.js";
 
 export { docClient, TABLE_NAME };
 export { GetCommand, PutCommand, QueryCommand, UpdateCommand, DeleteCommand, ScanCommand };
@@ -27,8 +27,8 @@ export function formatUser(item) {
     userName: item.userName,
     email: item.email,
     password: item.password,
-    profileImage: item.profileImage,
-    profileImageKey: item.profileImageKey,
+    profileImage: item.profileImage || "",
+    profileImageKey: item.profileImageKey || "",
     role: item.role,
     enrolledCourses: item.enrolledCourses || [],
     createdAt: item.createdAt,
@@ -38,22 +38,33 @@ export function formatUser(item) {
 
 export function formatCourse(item) {
   if (!item) return null;
+
+  // prefer courseUid if you ever introduced it, otherwise fallback to courseId
   const courseUid = item.courseUid || item.courseId;
+
   return {
     _id: courseUid,
     id: courseUid,
+
+    // keep both for compatibility (some frontend uses id, some uses courseId)
     courseUid,
     courseId: item.courseId,
-    title: item.title,
-    description: item.description,
-    videoURL: item.videoURL,
-    videoKey: item.videoKey || '',
-    instructor: item.instructor,
+
+    title: item.title || "",
+    description: item.description || "",
+
+    videoURL: item.videoURL || "",
+    videoKey: item.videoKey || "",
+    thumbnailUrl: item.thumbnailUrl || "",
+    thumbnailKey: item.thumbnailKey || "",
+
+    instructor: item.instructor || "",
     students: item.students || [],
-    courseTag: item.courseTag,
-    // Backward-compatible: older items won't have isHidden
+    courseTag: item.courseTag || "",
     isHidden: item.isHidden === true,
+
     createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
   };
 }
 
@@ -66,11 +77,11 @@ export function formatQuestion(item) {
     _id: item.questionId,
     questionId: item.questionId,
     taskId: item.taskId,
-    questionText: item.questionText,
+    questionText: item.questionText || "",
     options: item.options || [],
-    correctAnswer: item.correctAnswer,
-    explanation: item.explanation,
-    difficulty: item.difficulty,
+    correctAnswer: item.correctAnswer || "",
+    explanation: item.explanation || "",
+    difficulty: item.difficulty || "medium",
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -82,11 +93,11 @@ export function formatTask(item) {
     _id: item.taskId,
     taskId: item.taskId,
     courseId: item.courseId,
-    title: item.title,
-    description: item.description,
-    dueDate: item.dueDate,
-    type: item.type,
-    createdBy: item.createdBy,
+    title: item.title || "",
+    description: item.description || "",
+    dueDate: item.dueDate || null,
+    type: item.type || "quiz",
+    createdBy: item.createdBy || "",
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
