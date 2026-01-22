@@ -1,3 +1,18 @@
+/* Task Item Arrow (>) Button */
+.task-item-arrow {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  display: inline-block;
+  color: var(--color-muted, #6a6f73);
+  vertical-align: middle;
+  transition: color 0.2s;
+}
+
+.task-card-header:hover .task-item-arrow {
+  color: var(--color-primary, #007bff);
+}
 /* Tutor Tasks Page */
 .tutor-tasks-page {
   max-width: 1200px;

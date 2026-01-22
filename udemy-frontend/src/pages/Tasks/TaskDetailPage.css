@@ -153,6 +153,12 @@
   height: 18px;
 }
 
+.task-detail-badges svg,
+.task-detail-tabs svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Tabs */
 .task-detail-tabs {
   display: flex;

@@ -72,13 +72,18 @@ export default function LearnerTasksPage() {
         if (profileRes?.data?.success && profileRes.data.data?.user && !cancelled) {
           setUserProfile(profileRes.data.data.user);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          const apiMessage =
-            err.response?.data?.message ||
-            err.response?.data?.error ||
-            err.message;
-          setError(apiMessage || "Failed to load tasks");
+          let apiMessage = "Failed to load tasks";
+          if (typeof err === "object" && err !== null) {
+            const errorObj = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+            apiMessage =
+              errorObj.response?.data?.message ||
+              errorObj.response?.data?.error ||
+              errorObj.message ||
+              "Failed to load tasks";
+          }
+          setError(apiMessage);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -208,7 +213,7 @@ export default function LearnerTasksPage() {
                     </span>
                   </div>
                 </div>
-                <svg className="task-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg className="task-item-arrow" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M9 5l7 7-7 7" />
                 </svg>
               </div>
