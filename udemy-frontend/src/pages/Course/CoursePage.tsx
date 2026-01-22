@@ -238,9 +238,6 @@ export default function CoursePage() {
 
           {learner ? (
             <div className="course-header-actions">
-              <span className={`course-status-badge ${subscribed ? "course-status-badge--active" : ""}`}>
-                {subscribed ? "Subscribed" : "Not Subscribed"}
-              </span>
               <button
                 className={`course-btn ${subscribed ? "course-btn--primary" : "course-btn--outline"}`}
                 onClick={onToggleSubscribe}

@@ -363,12 +363,27 @@ export default function AllCourses() {
                         className={`subscribe-btn ${subscribed ? "subscribed" : ""}`}
                         disabled={busyCourseId === courseUid}
                         onClick={(e) => onToggleSubscribe(e, courseUid)}
+                        aria-label={busyCourseId === courseUid ? "Please wait" : subscribed ? "Unsubscribe" : "Subscribe"}
+                        data-hover-tip={subscribed ? "Unsubscribe" : "Subscribe"}
                       >
-                        {busyCourseId === courseUid
-                          ? "Please wait..."
-                          : subscribed
-                            ? "Unsubscribe"
-                            : "Subscribe"}
+                        {busyCourseId === courseUid ? (
+                          <div className="subscribe-spinner"></div>
+                        ) : (
+                          <span className="subscribe-icon" aria-hidden="true">
+                            {subscribed ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M5 12l5 5L20 7" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 5v14M5 12h14" />
+                              </svg>
+                            )}
+                          </span>
+                        )}
+                        <span className="sr-only">
+                          {subscribed ? "Unsubscribe from course" : "Subscribe to course"}
+                        </span>
                       </button>
                     </div>
                   )}
