@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { fetchAllCourses, fetchCourseThumbnailUrl, updateCourse as apiUpdateCourse, deleteCourse as apiDeleteCourse } from "../api/courses";
 import { getProfile } from "../api/profile";
 import { getRole, isTutor, isLearner, isAdmin } from "../auth/authStore";
@@ -80,6 +80,9 @@ function getVideoThumbnail(videoURL: string | undefined): string | null {
 
 // Transform backend course data to frontend format
 function transformCourse(course: ApiCourse): Course {
+  // Use courseUid if available, otherwise fallback to courseId (matches backend's formatCourse)
+  const id = course.courseUid || course.courseId;
+
   // read key safely even if types aren't updated
   const thumbnailKey = (course as any).thumbnailKey || "";
 
@@ -91,9 +94,10 @@ function transformCourse(course: ApiCourse): Course {
   if (isNaN(createdAt.getTime())) createdAt = new Date();
 
   return {
-    id: course.courseId,
+    id,
     title: course.title,
     instructor: course.instructor,
+    instructorId: course.instructorId || "",
     thumbnail,
     category: course.courseTag || "Uncategorized",
     createdAt,
@@ -138,14 +142,32 @@ interface CourseCardProps {
 }
 
 function CourseCard({ course, showManageActions, onEdit, onDelete, onToggleHide }: CourseCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}`;
+
   const stop = (e: any) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
   return (
     <div className={`course-card ${course.isHidden ? "hidden" : ""}`}>
-      <Link to={`/courses/${course.id}`} className="course-card-link">
+      <Link to={`/courses/${course.id}`} className="course-card-link" state={{ from: currentPath }}>
         <div className="course-thumbnail">
           <img src={course.thumbnail} alt={course.title} />
           {course.isHidden && <span className="course-badge">Hidden</span>}
@@ -159,16 +181,65 @@ function CourseCard({ course, showManageActions, onEdit, onDelete, onToggleHide 
       </Link>
 
       {showManageActions && (
-        <div className="course-actions" onClick={stop}>
-          <button className="course-action-btn" onClick={(e) => { stop(e); onEdit(course); }}>
-            Edit
+        <div className="course-menu" ref={menuRef} onClick={stop}>
+          <button
+            className="course-menu-trigger"
+            type="button"
+            aria-label="Course options"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={(e) => {
+              stop(e);
+              setMenuOpen((prev) => !prev);
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="5" cy="12" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="19" cy="12" r="1.5" />
+            </svg>
           </button>
-          <button className="course-action-btn danger" onClick={(e) => { stop(e); onDelete(course); }}>
-            Delete
-          </button>
-          <button className="course-action-btn" onClick={(e) => { stop(e); onToggleHide(course); }}>
-            {course.isHidden ? "Unhide on Course Page" : "Hide on Course Page"}
-          </button>
+
+          {menuOpen && (
+            <div className="course-menu-dropdown" role="menu">
+              <button
+                className="course-menu-item"
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  stop(e);
+                  setMenuOpen(false);
+                  onEdit(course);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="course-menu-item danger"
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  stop(e);
+                  setMenuOpen(false);
+                  onDelete(course);
+                }}
+              >
+                Delete
+              </button>
+              <button
+                className="course-menu-item"
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  stop(e);
+                  setMenuOpen(false);
+                  onToggleHide(course);
+                }}
+              >
+                {course.isHidden ? "Unhide on Course Page" : "Hide on Course Page"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

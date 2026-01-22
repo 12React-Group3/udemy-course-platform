@@ -482,11 +482,22 @@
 
 .subscribe-btn {
   border: 1px solid var(--color-border, #d1d7dc);
-  background: #fff;
+  background: var(--color-panel, #fff);
   padding: 8px 12px;
   border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  color: var(--color-text, #111);
+  position: relative;
+}
+
+.subscribe-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .subscribe-btn.subscribed {
@@ -500,6 +511,12 @@
   cursor: not-allowed;
 }
 
+.subscribe-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .subscribe-toast {
   position: sticky;
   top: 10px;
@@ -510,4 +527,84 @@
   background: #fff;
   border-radius: 10px;
   font-weight: 600;
+}
+
+[data-theme="dark"] .subscribe-btn {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: var(--color-surface-muted, #1f2937);
+  color: var(--color-text, #e5e7eb);
+}
+
+[data-theme="dark"] .subscribe-btn svg {
+  stroke: var(--color-text, #e5e7eb);
+}
+
+[data-theme="dark"] .subscribe-btn.subscribed {
+  background: var(--color-primary, #60a5fa);
+  border-color: var(--color-primary, #60a5fa);
+  color: #111;
+}
+
+.subscribe-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border, #d1d7dc);
+  border-top-color: var(--color-primary, #007bff);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.subscribe-btn[data-hover-tip]::after {
+  content: attr(data-hover-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #d1d7dc);
+  background: var(--color-panel, #fff);
+  color: var(--color-text, #1c1d1f);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+  z-index: 2;
+}
+
+.subscribe-btn:hover::after {
+  opacity: 1;
+}
+.subscribe-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border, #d1d7dc);
+  border-top-color: var(--color-primary, #007bff);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }

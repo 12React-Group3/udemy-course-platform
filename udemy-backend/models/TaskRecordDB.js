@@ -74,4 +74,20 @@ export const TaskRecordDB = {
 
     return formatTaskRecord(result.Item);
   },
+
+  /**
+   * Find all task records for a specific task (using GSI1)
+   */
+  async findByTaskId(taskId) {
+    const result = await docClient.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI1',
+      KeyConditionExpression: 'GSI1PK = :pk',
+      ExpressionAttributeValues: {
+        ':pk': `TASK#${taskId}`,
+      },
+    }));
+
+    return (result.Items || []).map(formatTaskRecord);
+  },
 };

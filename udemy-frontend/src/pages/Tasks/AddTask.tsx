@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { ChangeEvent, FormEvent, MouseEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { createTask } from "../../api/tasks";
 import "./AddTask.css";
 
@@ -7,6 +7,8 @@ type Course = {
   courseId: string;
   title: string;
   instructor: string;
+  courseUid?: string;
+  id?: string;
 };
 
 type QuestionForm = {
@@ -82,8 +84,10 @@ export default function AddTask({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Use course.id (courseUid) for the form value
+      const firstCourseUid = courses.length > 0 ? (courses[0].courseUid || courses[0].id || courses[0].courseId) : "";
       setForm({
-        courseId: courses.length > 0 ? courses[0].courseId : "",
+        courseId: firstCourseUid,
         title: "",
         description: "",
         type: "quiz",
@@ -203,8 +207,12 @@ export default function AddTask({
     try {
       setLoading(true);
 
+      // Send courseUid explicitly (form.courseId contains the courseUid value)
       const taskData = {
-        ...form,
+        courseUid: form.courseId, // This is actually courseUid
+        title: form.title,
+        description: form.description,
+        type: form.type,
         dueDate: form.dueDate || null,
         questions: questions.map((q) => ({
           questionText: q.questionText,
@@ -228,22 +236,17 @@ export default function AddTask({
         onSuccess?.();
         onClose?.();
       }, 800);
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Something went wrong";
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      const msg = err.response?.data?.message || err.message || "Something went wrong";
       setMessage(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  function handleBackdropClick(e: MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) {
-      requestClose(); // NEW guarded close
-    }
-  }
-
   return (
-    <div className="task-modal-backdrop" onClick={handleBackdropClick}>
+    <div className="task-modal-backdrop">
       <div className="task-modal-container">
         <div className="task-modal-header">
           <h2 className="task-modal-title">Create New Task</h2>
@@ -276,11 +279,15 @@ export default function AddTask({
                   disabled={loading}
                 >
                   {courses.length === 0 && <option value="">No courses found</option>}
-                  {courses.map((course) => (
-                    <option key={course.courseId} value={course.courseId}>
-                      {course.title}
-                    </option>
-                  ))}
+                  {courses.map((course) => {
+                    // Use course.id (courseUid) as the value
+                const courseUid = course.courseUid || course.id || course.courseId;
+                    return (
+                      <option key={courseUid} value={courseUid}>
+                        {course.title}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <div className="task-form-group">
@@ -438,11 +445,11 @@ export default function AddTask({
 
           {message && <div className="task-form-message">{message}</div>}
 
-          <div className="task-form-actions">
-            <button type="button" className="cancel-btn" onClick={requestClose} disabled={loading}>
+          <div className="task-modal-actions">
+            <button type="button" className="task-btn-cancel" onClick={onClose} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="submit-btn" disabled={loading}>
+            <button type="submit" className="task-btn-submit" disabled={loading}>
               {loading ? "Creating..." : "Create Task"}
             </button>
           </div>

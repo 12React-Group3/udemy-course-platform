@@ -15,17 +15,18 @@ export const API_PATHS = {
     CREATE: `${BASE_URL}/api/courses`,
     PRESIGN_VIDEO: `${BASE_URL}/api/courses/presign-video`,
     PRESIGN_THUMBNAIL: `${BASE_URL}/api/courses/presign-thumbnail`,
-    GET_BY_ID: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
-    GET_VIDEO_URL: (courseId) =>
-      `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/video-url`,
-    GET_THUMBNAIL_URL: (courseId) =>
-      `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/thumbnail-url`,
-    UPDATE: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
-    DELETE: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
-    SUBSCRIBE: (courseId) =>
-      `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/subscribe`,
-    UNSUBSCRIBE: (courseId) =>
-      `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/unsubscribe`,
+    // All course-specific endpoints use courseUid (system-generated unique ID)
+    GET_BY_ID: (courseUid) => `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}`,
+    GET_VIDEO_URL: (courseUid) =>
+      `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}/video-url`,
+    GET_THUMBNAIL_URL: (courseUid) =>
+      `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}/thumbnail-url`,
+    UPDATE: (courseUid) => `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}`,
+    DELETE: (courseUid) => `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}`,
+    SUBSCRIBE: (courseUid) =>
+      `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}/subscribe`,
+    UNSUBSCRIBE: (courseUid) =>
+      `${BASE_URL}/api/courses/${encodeURIComponent(courseUid)}/unsubscribe`,
   },
 
   TASKS: {

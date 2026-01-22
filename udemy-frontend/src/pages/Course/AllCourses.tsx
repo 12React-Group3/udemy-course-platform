@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, MouseEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { fetchAllCourses, fetchCourseThumbnailUrl, subscribeCourse, unsubscribeCourse } from "../../api/courses";
 import { getProfile } from "../../api/profile";
 import { isLearner } from "../../auth/authStore";
+import type { ApiCourse } from "../../types";
 import "./AllCourses.css";
 
+// Extended course type with signed thumbnail URL
+interface CourseWithThumbnail extends ApiCourse {
+  id?: string;
+  signedThumbnailUrl?: string;
+}
+
 // Helper function to extract YouTube thumbnail from URL
-function getYouTubeThumbnail(videoURL) {
+function getYouTubeThumbnail(videoURL: string | undefined): string | null {
   if (!videoURL) return null;
   try {
     const url = new URL(videoURL);
@@ -24,33 +31,36 @@ function getYouTubeThumbnail(videoURL) {
   }
 }
 
-async function attachSignedThumbnails(rawCourses) {
+async function attachSignedThumbnails(rawCourses: CourseWithThumbnail[]): Promise<CourseWithThumbnail[]> {
   const targets = rawCourses.filter((c) => c?.thumbnailKey);
 
   if (targets.length === 0) return rawCourses;
 
   const pairs = await Promise.all(
-    targets.map(async (c) => {
+    targets.map(async (c): Promise<[string, string | null]> => {
+      // Use course.id (courseUid) for API calls
+      const courseKey = c.id || c.courseUid || c.courseId;
       try {
-        const res = await fetchCourseThumbnailUrl(c.courseId);
+        const res = await fetchCourseThumbnailUrl(courseKey);
         const signedUrl = res.data?.data?.signedUrl;
-        return [c.courseId, signedUrl || null];
+        return [courseKey, signedUrl || null];
       } catch {
-        return [c.courseId, null];
+        return [courseKey, null];
       }
     })
   );
 
-  const map = new Map();
+  const map = new Map<string, string>();
   for (const [id, url] of pairs) if (url) map.set(id, url);
 
-  // add a field the UI can use
-  return rawCourses.map((c) =>
-    map.has(c.courseId) ? { ...c, signedThumbnailUrl: map.get(c.courseId) } : c
-  );
+  // add a field the UI can use - use course.id (courseUid) as key
+  return rawCourses.map((c) => {
+    const courseKey = c.id || c.courseUid || c.courseId;
+    return map.has(courseKey) ? { ...c, signedThumbnailUrl: map.get(courseKey) } : c;
+  });
 }
 
-function getCourseThumbnail(course) {
+function getCourseThumbnail(course: CourseWithThumbnail): string | null {
   // signed URL first
   if (course.signedThumbnailUrl) return course.signedThumbnailUrl;
 
@@ -62,19 +72,20 @@ function getCourseThumbnail(course) {
 }
 
 export default function AllCourses() {
-  const [coursesRaw, setCoursesRaw] = useState([]);
+  const [coursesRaw, setCoursesRaw] = useState<CourseWithThumbnail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
-  const [visibility, setVisibility] = useState("visible");
 
-  // NEW: subscription state
-  const [enrolledSet, setEnrolledSet] = useState(new Set());
+  // Subscription state
+  const [enrolledSet, setEnrolledSet] = useState<Set<string>>(new Set());
   const [busyCourseId, setBusyCourseId] = useState("");
   const [toast, setToast] = useState("");
 
   const learner = isLearner();
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}`;
 
   const loadCourses = async () => {
     try {
@@ -88,14 +99,15 @@ export default function AllCourses() {
 
       if (!coursesRes.data?.success) throw new Error(coursesRes.data?.message || "Failed to load courses");
 
-      const raw = Array.isArray(coursesRes.data.data) ? coursesRes.data.data : [];
+      const raw: CourseWithThumbnail[] = Array.isArray(coursesRes.data.data) ? coursesRes.data.data : [];
       const withThumbs = await attachSignedThumbnails(raw);
       setCoursesRaw(withThumbs);
 
-      const enrolled = profileRes?.data?.data?.user?.enrolledCourses || [];
+      const enrolled: string[] = profileRes?.data?.data?.user?.enrolledCourses || [];
       setEnrolledSet(new Set(enrolled));
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Failed to load courses");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } }; message?: string };
+      setError(error.response?.data?.error || error.message || "Failed to load courses");
     } finally {
       setLoading(false);
     }
@@ -106,31 +118,31 @@ export default function AllCourses() {
   }, []);
 
   // Show only courses that are NOT hidden on Course Page
-  const validCourses = useMemo(() => {
+  const validCourses = useMemo((): CourseWithThumbnail[] => {
     // Backward compatible: if isHidden is missing, treat it as false (visible)
-    return coursesRaw.filter((c) => c?.isHidden !== true);
+    return coursesRaw.filter((c: CourseWithThumbnail) => c?.isHidden !== true);
   }, [coursesRaw]);
 
   // Extract unique categories from courses
-  const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(validCourses.map((c) => c.courseTag || "Uncategorized"))];
+  const categories = useMemo((): string[] => {
+    const uniqueCategories = [...new Set(validCourses.map((c: CourseWithThumbnail) => c.courseTag || "Uncategorized"))];
     return ["All", ...uniqueCategories.sort()];
   }, [validCourses]);
 
   // Filter courses by category and search query
-  const courses = useMemo(() => {
+  const courses = useMemo((): CourseWithThumbnail[] => {
     let filtered = validCourses;
 
     // Filter by category
     if (activeCategory !== "All") {
-      filtered = filtered.filter((c) => (c.courseTag || "Uncategorized") === activeCategory);
+      filtered = filtered.filter((c: CourseWithThumbnail) => (c.courseTag || "Uncategorized") === activeCategory);
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (c) => c.title?.toLowerCase().includes(query) || c.instructor?.toLowerCase().includes(query)
+        (c: CourseWithThumbnail) => c.title?.toLowerCase().includes(query) || c.instructor?.toLowerCase().includes(query)
       );
     }
 
@@ -138,39 +150,41 @@ export default function AllCourses() {
   }, [validCourses, activeCategory, searchQuery]);
 
   // Prevent Link navigation when clicking subscribe button
-  const stopCardNav = (e) => {
+  const stopCardNav = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const onToggleSubscribe = async (e, courseId) => {
+  // Use courseUid (course.id) for subscription API calls
+  const onToggleSubscribe = async (e: MouseEvent, courseUid: string) => {
     stopCardNav(e);
 
     try {
-      setBusyCourseId(courseId);
+      setBusyCourseId(courseUid);
       setToast("");
 
-      const subscribed = enrolledSet.has(courseId);
+      const subscribed = enrolledSet.has(courseUid);
 
       if (subscribed) {
-        const res = await unsubscribeCourse(courseId);
+        const res = await unsubscribeCourse(courseUid);
         if (!res.data?.success) throw new Error(res.data?.message || "Unsubscribe failed");
 
         const next = new Set(enrolledSet);
-        next.delete(courseId);
+        next.delete(courseUid);
         setEnrolledSet(next);
         setToast("Unsubscribed. Removed from Dashboard.");
       } else {
-        const res = await subscribeCourse(courseId);
+        const res = await subscribeCourse(courseUid);
         if (!res.data?.success) throw new Error(res.data?.message || "Subscribe failed");
 
         const next = new Set(enrolledSet);
-        next.add(courseId);
+        next.add(courseUid);
         setEnrolledSet(next);
         setToast("Subscribed! You can access it in Dashboard now.");
       }
-    } catch (err) {
-      setToast(err.response?.data?.message || err.message || "Action failed");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setToast(error.response?.data?.message || error.message || "Action failed");
     } finally {
       setBusyCourseId("");
       setTimeout(() => setToast(""), 2500);
@@ -216,7 +230,7 @@ export default function AllCourses() {
 
       <div className="courses-filter-bar">
         <div className="category-tabs">
-          {categories.map((category) => (
+          {categories.map((category: string) => (
             <button
               key={category}
               className={`category-tab ${activeCategory === category ? "active" : ""}`}
@@ -271,18 +285,22 @@ export default function AllCourses() {
         </div>
       ) : (
         <div className="courses-grid">
-          {courses.map((course) => {
-            const subscribed = enrolledSet.has(course.courseId);
+          {courses.map((course: CourseWithThumbnail) => {
+            // Use course.id (courseUid) for consistency
+            const courseUid = course.id || course.courseUid || course.courseId;
+            const subscribed = enrolledSet.has(courseUid);
+            const thumbnail = getCourseThumbnail(course);
 
             return (
               <Link
-                key={course.courseId}
-                to={`/courses/${encodeURIComponent(course.courseId)}`}
+                key={courseUid}
+                to={`/courses/${encodeURIComponent(courseUid)}`}
+                state={{ from: currentPath }}
                 className="course-card"
               >
                 <div className="course-thumbnail">
-                  {getCourseThumbnail(course) ? (
-                    <img src={getCourseThumbnail(course)} alt={course.title} />
+                  {thumbnail ? (
+                    <img src={thumbnail} alt={course.title} />
                   ) : (
                     <div className="thumbnail-placeholder">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -315,7 +333,6 @@ export default function AllCourses() {
                     </svg>
                     <span>{course.instructor || "Unknown Instructor"}</span>
                   </div>
-
                   <div className="course-meta">
                     <span className="meta-item">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -344,14 +361,29 @@ export default function AllCourses() {
                     <div className="course-subscribe-row" onClick={stopCardNav}>
                       <button
                         className={`subscribe-btn ${subscribed ? "subscribed" : ""}`}
-                        disabled={busyCourseId === course.courseId}
-                        onClick={(e) => onToggleSubscribe(e, course.courseId)}
+                        disabled={busyCourseId === courseUid}
+                        onClick={(e) => onToggleSubscribe(e, courseUid)}
+                        aria-label={busyCourseId === courseUid ? "Please wait" : subscribed ? "Unsubscribe" : "Subscribe"}
+                        data-hover-tip={subscribed ? "Unsubscribe" : "Subscribe"}
                       >
-                        {busyCourseId === course.courseId
-                          ? "Please wait..."
-                          : subscribed
-                            ? "Unsubscribe"
-                            : "Subscribe"}
+                        {busyCourseId === courseUid ? (
+                          <div className="subscribe-spinner"></div>
+                        ) : (
+                          <span className="subscribe-icon" aria-hidden="true">
+                            {subscribed ? (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M5 12l5 5L20 7" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 5v14M5 12h14" />
+                              </svg>
+                            )}
+                          </span>
+                        )}
+                        <span className="sr-only">
+                          {subscribed ? "Unsubscribe from course" : "Subscribe to course"}
+                        </span>
                       </button>
                     </div>
                   )}

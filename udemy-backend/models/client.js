@@ -53,15 +53,16 @@ export function formatCourse(item) {
     title: item.title || "",
     description: item.description || "",
 
-    videoURL: item.videoURL || "",
-    videoKey: item.videoKey || "",
-    thumbnailUrl: item.thumbnailUrl || "",
-    thumbnailKey: item.thumbnailKey || "",
+  videoURL: item.videoURL || "",
+  videoKey: item.videoKey || "",
+  thumbnailUrl: item.thumbnailUrl || "",
+  thumbnailKey: item.thumbnailKey || "",
 
-    instructor: item.instructor || "",
-    students: item.students || [],
-    courseTag: item.courseTag || "",
-    isHidden: item.isHidden === true,
+  instructor: item.instructor || "",
+  instructorId: item.instructorId || "",
+  students: item.students || [],
+  courseTag: item.courseTag || "",
+  isHidden: item.isHidden === true,
 
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -89,10 +90,12 @@ export function formatQuestion(item) {
 
 export function formatTask(item) {
   if (!item) return null;
+  const courseUid = item.courseUid || item.courseId || "";
   return {
     _id: item.taskId,
     taskId: item.taskId,
-    courseId: item.courseId,
+    courseId: item.courseId || courseUid,
+    courseUid,
     title: item.title || "",
     description: item.description || "",
     dueDate: item.dueDate || null,

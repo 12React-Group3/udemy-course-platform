@@ -62,6 +62,7 @@ export function fetchTaskRecords(taskId) {
   return apiClient.get(API_PATHS.TASKS.GET_RECORDS(taskId));
 }
 
-export function fetchTasksByCourseId(courseId) {
-  return apiClient.get(`/api/tasks?courseId=${encodeURIComponent(courseId)}`);
+// Fetch tasks for a specific course (uses courseUid)
+export function fetchTasksByCourseId(courseUid) {
+  return apiClient.get(`/api/tasks/course/${encodeURIComponent(courseUid)}`);
 }

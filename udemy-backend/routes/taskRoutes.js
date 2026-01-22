@@ -43,7 +43,7 @@ router.use(protect);
 // Task routes
 router.get('/', getAllTasks);
 router.get('/my-submissions', getMySubmissions);
-router.get('/course/:courseId', getTasksByCourse);
+router.get('/course/:courseUid', getTasksByCourse);
 router.get('/:taskId', getTaskById);
 
 // Tutor-only routes for task management

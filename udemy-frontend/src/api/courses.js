@@ -6,8 +6,9 @@ export function fetchAllCourses() {
   return apiClient.get(API_PATHS.COURSES.GET_ALL);
 }
 
-export function fetchCourseById(courseId) {
-  return apiClient.get(API_PATHS.COURSES.GET_BY_ID(courseId));
+// All course-specific functions use courseUid (system-generated unique ID)
+export function fetchCourseById(courseUid) {
+  return apiClient.get(API_PATHS.COURSES.GET_BY_ID(courseUid));
 }
 
 export function createCourse(courseData) {
@@ -22,26 +23,26 @@ export function presignThumbnailUpload(payload) {
   return apiClient.post(API_PATHS.COURSES.PRESIGN_THUMBNAIL, payload);
 }
 
-export function fetchCourseVideoUrl(courseId) {
-  return apiClient.get(API_PATHS.COURSES.GET_VIDEO_URL(courseId));
+export function fetchCourseVideoUrl(courseUid) {
+  return apiClient.get(API_PATHS.COURSES.GET_VIDEO_URL(courseUid));
 }
 
-export function fetchCourseThumbnailUrl(courseId) {
-  return apiClient.get(API_PATHS.COURSES.GET_THUMBNAIL_URL(courseId));
+export function fetchCourseThumbnailUrl(courseUid) {
+  return apiClient.get(API_PATHS.COURSES.GET_THUMBNAIL_URL(courseUid));
 }
 
-export function updateCourse(courseId, payload) {
-  return apiClient.put(API_PATHS.COURSES.UPDATE(courseId), payload);
+export function updateCourse(courseUid, payload) {
+  return apiClient.put(API_PATHS.COURSES.UPDATE(courseUid), payload);
 }
 
-export function deleteCourse(courseId) {
-  return apiClient.delete(API_PATHS.COURSES.DELETE(courseId));
+export function deleteCourse(courseUid) {
+  return apiClient.delete(API_PATHS.COURSES.DELETE(courseUid));
 }
 
-export function subscribeCourse(courseId) {
-  return apiClient.post(API_PATHS.COURSES.SUBSCRIBE(courseId), {});
+export function subscribeCourse(courseUid) {
+  return apiClient.post(API_PATHS.COURSES.SUBSCRIBE(courseUid), {});
 }
 
-export function unsubscribeCourse(courseId) {
-  return apiClient.post(API_PATHS.COURSES.UNSUBSCRIBE(courseId), {});
+export function unsubscribeCourse(courseUid) {
+  return apiClient.post(API_PATHS.COURSES.UNSUBSCRIBE(courseUid), {});
 }
