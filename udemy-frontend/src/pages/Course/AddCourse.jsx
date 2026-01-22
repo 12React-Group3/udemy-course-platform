@@ -19,6 +19,35 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // NEW: track unsaved edits
+  const [isDirty, setIsDirty] = useState(false);
+
+  // helper: determine if anything is actually filled
+  const hasAnyInput = () => {
+    const anyText =
+      form.courseId.trim() ||
+      form.title.trim() ||
+      form.description.trim() ||
+      form.instructor.trim() ||
+      form.courseTag.trim();
+    return Boolean(anyText) || Boolean(videoFile);
+  };
+
+  // NEW: guarded close (ESC, backdrop, X, Cancel should use this)
+  const requestClose = () => {
+    if (loading) return; // don't allow closing during upload
+
+    // if no edits, close silently
+    if (!isDirty && !hasAnyInput()) {
+      onClose?.();
+      return;
+    }
+
+    // if edits exist, confirm discard
+    const ok = window.confirm("You have unsaved changes. Discard them and close?");
+    if (ok) onClose?.();
+  };
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -32,14 +61,15 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
       setVideoFile(null);
       setMessage("");
       setUploadProgress(0);
+      setIsDirty(false); // NEW reset dirty
     }
   }, [isOpen, defaultInstructor]);
 
   // Handle escape key and body scroll
   useEffect(() => {
     function handleEscape(e) {
-      if (e.key === "Escape" && !loading) {
-        onClose?.();
+      if (e.key === "Escape") {
+        requestClose();
       }
     }
     if (isOpen) {
@@ -50,12 +80,14 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [isOpen, loading, onClose]);
+    // include deps used inside handler
+  }, [isOpen, loading, isDirty, videoFile, form]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 
   function handleChange(e) {
     const { name, value } = e.target;
+    setIsDirty(true); // NEW
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
@@ -65,6 +97,7 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
 
     if (!file) {
       setVideoFile(null);
+      setIsDirty(true); // NEW (counts as edit)
       return;
     }
 
@@ -76,6 +109,7 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
     }
 
     setVideoFile(file);
+    setIsDirty(true); // NEW
   }
 
   async function handleSubmit(e) {
@@ -136,6 +170,7 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
 
       setUploadProgress(100);
       setMessage("Course created successfully!");
+      setIsDirty(false); // NEW: saved
 
       // Callback and navigate
       setTimeout(() => {
@@ -157,8 +192,8 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
   }
 
   function handleBackdropClick(e) {
-    if (e.target === e.currentTarget && !loading) {
-      onClose?.();
+    if (e.target === e.currentTarget) {
+      requestClose(); // NEW guarded close
     }
   }
 
@@ -169,7 +204,7 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
           <h2 className="modal-title">Create New Course</h2>
           <button
             className="modal-close"
-            onClick={onClose}
+            onClick={requestClose}   // NEW guarded close
             disabled={loading}
             aria-label="Close modal"
           >
@@ -265,9 +300,7 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
                       <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                     <span className="file-name">{videoFile.name}</span>
-                    <span className="file-size">
-                      {(videoFile.size / 1024 / 1024).toFixed(1)} MB
-                    </span>
+                    <span className="file-size">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</span>
                   </div>
                 ) : (
                   <div className="file-placeholder">
@@ -306,19 +339,10 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
           )}
 
           <div className="modal-actions">
-            <button
-              type="button"
-              className="btn-cancel"
-              onClick={onClose}
-              disabled={loading}
-            >
+            <button type="button" className="btn-cancel" onClick={requestClose} disabled={loading}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-submit"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-submit" disabled={loading}>
               {loading ? (
                 <>
                   <span className="spinner" />

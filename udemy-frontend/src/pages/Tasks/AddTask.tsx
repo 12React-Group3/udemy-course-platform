@@ -51,6 +51,34 @@ export default function AddTask({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // NEW: dirty tracking
+  const [isDirty, setIsDirty] = useState(false);
+
+  const hasAnyInput = () => {
+    const anyText =
+      form.courseId.trim() ||
+      form.title.trim() ||
+      form.description.trim() ||
+      form.type.trim() ||
+      form.dueDate.trim();
+
+    const hasQuestions = questions.length > 0;
+    return Boolean(anyText) || hasQuestions;
+  };
+
+  const requestClose = () => {
+    if (loading) return;
+
+    // no edits -> close silently
+    if (!isDirty && !hasAnyInput()) {
+      onClose?.();
+      return;
+    }
+
+    const ok = window.confirm("You have unsaved changes. Discard them and close?");
+    if (ok) onClose?.();
+  };
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -63,14 +91,15 @@ export default function AddTask({
       });
       setQuestions([]);
       setMessage("");
+      setIsDirty(false); // NEW
     }
   }, [isOpen, courses]);
 
   // Handle escape key and body scroll
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape" && !loading) {
-        onClose?.();
+      if (e.key === "Escape") {
+        requestClose();
       }
     }
     if (isOpen) {
@@ -81,7 +110,8 @@ export default function AddTask({
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [isOpen, loading, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, loading, isDirty, form, questions]);
 
   if (!isOpen) return null;
 
@@ -89,10 +119,12 @@ export default function AddTask({
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target;
+    setIsDirty(true); // NEW
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function addQuestion() {
+    setIsDirty(true); // NEW
     setQuestions((prev) => [
       ...prev,
       {
@@ -107,16 +139,19 @@ export default function AddTask({
   }
 
   function removeQuestion(id: number) {
+    setIsDirty(true); // NEW
     setQuestions((prev) => prev.filter((q) => q.id !== id));
   }
 
   function updateQuestion(id: number, field: keyof QuestionForm, value: string) {
+    setIsDirty(true); // NEW
     setQuestions((prev) =>
       prev.map((q) => (q.id === id ? { ...q, [field]: value } : q))
     );
   }
 
   function updateOption(questionId: number, optionIndex: number, value: string) {
+    setIsDirty(true); // NEW
     setQuestions((prev) =>
       prev.map((q) => {
         if (q.id === questionId) {
@@ -187,16 +222,14 @@ export default function AddTask({
       }
 
       setMessage("Task created successfully!");
+      setIsDirty(false); // NEW saved
 
       setTimeout(() => {
         onSuccess?.();
         onClose?.();
       }, 800);
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Something went wrong";
+      const msg = err?.response?.data?.message || err?.message || "Something went wrong";
       setMessage(msg);
     } finally {
       setLoading(false);
@@ -204,8 +237,8 @@ export default function AddTask({
   }
 
   function handleBackdropClick(e: MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget && !loading) {
-      onClose?.();
+    if (e.target === e.currentTarget) {
+      requestClose(); // NEW guarded close
     }
   }
 
@@ -216,7 +249,7 @@ export default function AddTask({
           <h2 className="task-modal-title">Create New Task</h2>
           <button
             className="task-modal-close"
-            onClick={onClose}
+            onClick={requestClose} // NEW
             disabled={loading}
             aria-label="Close modal"
           >
@@ -240,6 +273,7 @@ export default function AddTask({
                   value={form.courseId}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 >
                   {courses.length === 0 && <option value="">No courses found</option>}
                   {courses.map((course) => (
@@ -251,7 +285,13 @@ export default function AddTask({
               </div>
               <div className="task-form-group">
                 <label htmlFor="type">Task Type</label>
-                <select id="type" name="type" value={form.type} onChange={handleChange}>
+                <select
+                  id="type"
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                  disabled={loading}
+                >
                   <option value="quiz">Quiz</option>
                   <option value="assignment">Assignment</option>
                   <option value="exam">Exam</option>
@@ -268,6 +308,7 @@ export default function AddTask({
                 onChange={handleChange}
                 placeholder="Enter task title"
                 required
+                disabled={loading}
               />
             </div>
 
@@ -280,6 +321,7 @@ export default function AddTask({
                 onChange={handleChange}
                 placeholder="Describe this task"
                 rows={3}
+                disabled={loading}
               />
             </div>
 
@@ -291,6 +333,7 @@ export default function AddTask({
                 type="date"
                 value={form.dueDate}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
           </div>
@@ -299,7 +342,12 @@ export default function AddTask({
           <div className="task-section">
             <div className="task-section-header">
               <h3 className="task-section-title">Questions</h3>
-              <button type="button" className="add-question-btn" onClick={addQuestion}>
+              <button
+                type="button"
+                className="add-question-btn"
+                onClick={addQuestion}
+                disabled={loading}
+              >
                 Add Question
               </button>
             </div>
@@ -318,6 +366,7 @@ export default function AddTask({
                     type="button"
                     className="remove-question-btn"
                     onClick={() => removeQuestion(question.id)}
+                    disabled={loading}
                   >
                     Remove
                   </button>
@@ -330,6 +379,7 @@ export default function AddTask({
                     onChange={(e) => updateQuestion(question.id, "questionText", e.target.value)}
                     placeholder="Enter your question"
                     rows={2}
+                    disabled={loading}
                   />
                 </div>
 
@@ -339,6 +389,7 @@ export default function AddTask({
                     <select
                       value={question.difficulty}
                       onChange={(e) => updateQuestion(question.id, "difficulty", e.target.value)}
+                      disabled={loading}
                     >
                       <option value="easy">Easy</option>
                       <option value="medium">Medium</option>
@@ -351,6 +402,7 @@ export default function AddTask({
                       value={question.correctAnswer}
                       onChange={(e) => updateQuestion(question.id, "correctAnswer", e.target.value)}
                       placeholder="Must match one of the options"
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -364,6 +416,7 @@ export default function AddTask({
                         value={opt}
                         onChange={(e) => updateOption(question.id, optIndex, e.target.value)}
                         placeholder={`Option ${optIndex + 1}`}
+                        disabled={loading}
                       />
                     ))}
                   </div>
@@ -376,6 +429,7 @@ export default function AddTask({
                     onChange={(e) => updateQuestion(question.id, "explanation", e.target.value)}
                     placeholder="Explain the correct answer"
                     rows={2}
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -385,7 +439,7 @@ export default function AddTask({
           {message && <div className="task-form-message">{message}</div>}
 
           <div className="task-form-actions">
-            <button type="button" className="cancel-btn" onClick={onClose} disabled={loading}>
+            <button type="button" className="cancel-btn" onClick={requestClose} disabled={loading}>
               Cancel
             </button>
             <button type="submit" className="submit-btn" disabled={loading}>
