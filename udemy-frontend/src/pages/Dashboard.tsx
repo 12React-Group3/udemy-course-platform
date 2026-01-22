@@ -91,9 +91,10 @@ function transformCourse(course: ApiCourse): Course {
   if (isNaN(createdAt.getTime())) createdAt = new Date();
 
   return {
-    id: course.courseId,
+    id,
     title: course.title,
     instructor: course.instructor,
+    instructorId: course.instructorId || "",
     thumbnail,
     category: course.courseTag || "Uncategorized",
     createdAt,

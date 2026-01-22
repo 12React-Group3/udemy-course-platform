@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCourse, presignVideoUpload, presignThumbnailUpload } from "../../api/courses";
 import "./AddCourse.css";
@@ -94,6 +94,14 @@ type AddCourseProps = {
   defaultInstructor?: string;
 };
 
+type CourseForm = {
+  courseId: string;
+  title: string;
+  description: string;
+  instructor: string;
+  courseTag: string;
+};
+
 export default function AddCourse({
   isOpen,
   onClose,
@@ -102,7 +110,7 @@ export default function AddCourse({
 }: AddCourseProps) {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CourseForm>({
     courseId: "",
     title: "",
     description: "",
@@ -115,47 +123,6 @@ export default function AddCourse({
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // track unsaved edits
-  const [isDirty, setIsDirty] = useState(false);
-
-  // refs to avoid re-binding ESC listener on every keystroke
-  const latestRef = useRef({
-    loading: false,
-    isDirty: false,
-    form,
-    videoFile: null as File | null,
-  });
-
-  useEffect(() => {
-    latestRef.current = { loading, isDirty, form, videoFile };
-  }, [loading, isDirty, form, videoFile]);
-
-  const hasAnyInput = useCallback(() => {
-    const f = latestRef.current.form;
-    const anyText =
-      f.courseId.trim() ||
-      f.title.trim() ||
-      f.description.trim() ||
-      f.instructor.trim() ||
-      f.courseTag.trim();
-    return Boolean(anyText) || Boolean(latestRef.current.videoFile);
-  }, []);
-
-  const requestClose = useCallback(() => {
-    const { loading: nowLoading, isDirty: nowDirty } = latestRef.current;
-
-    if (nowLoading) return;
-
-    if (!nowDirty && !hasAnyInput()) {
-      onClose?.();
-      return;
-    }
-
-    const ok = window.confirm("You have unsaved changes. Discard them and close?");
-    if (ok) onClose?.();
-  }, [hasAnyInput, onClose]);
-
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setForm({
@@ -177,10 +144,12 @@ export default function AddCourse({
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape") requestClose();
     }
+
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
     }
+
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
@@ -189,13 +158,13 @@ export default function AddCourse({
 
   if (!isOpen) return null;
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setIsDirty(true);
     setForm((prev) => ({ ...prev, [name]: value }));
-  }
+  };
 
-  function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleVideoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setMessage("");
 
@@ -213,10 +182,9 @@ export default function AddCourse({
     }
 
     setVideoFile(file);
-    setIsDirty(true);
-  }
+  };
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage("");
 
@@ -318,7 +286,13 @@ export default function AddCourse({
       setTimeout(() => {
         onSuccess?.();
         onClose?.();
-        navigate(`/courses/${form.courseId}`);
+        const createdCourse = createRes.data?.data;
+        const courseUid = createdCourse?.courseUid;
+        if (courseUid) {
+          navigate(`/courses/${courseUid}`, { state: { from: "/dashboard" } });
+        } else {
+          console.warn("Created course missing courseUid, skipping navigation");
+        }
       }, 800);
     } catch (err: any) {
       const msg =
@@ -338,7 +312,7 @@ export default function AddCourse({
   }
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
+    <div className="modal-backdrop">
       <div className="modal-container">
         <div className="modal-header">
           <h2 className="modal-title">Create New Course</h2>

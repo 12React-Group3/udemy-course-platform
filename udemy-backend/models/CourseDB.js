@@ -25,6 +25,7 @@ export const CourseDB = {
     videoURL = '',
     videoKey = '',
     instructor,
+    instructorId = '',
     courseTag = '',
     students = [],
     isHidden = false,
@@ -47,6 +48,7 @@ export const CourseDB = {
       videoURL,
       videoKey,
       instructor,
+      instructorId,
       courseTag,
       students,
       isHidden: isHidden === true,
@@ -95,6 +97,27 @@ export const CourseDB = {
     );
 
     return g.Item ? formatCourse(g.Item) : null;
+  },
+
+  /**
+   * Find course by courseUid or courseId
+   */
+  async findByCourseKey(courseKey) {
+    if (!courseKey) return null;
+
+    const result = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseKey}`,
+        SK: `COURSE#${courseKey}`,
+      },
+    }));
+
+    if (result.Item) {
+      return formatCourse(result.Item);
+    }
+
+    return await this.findByCourseId(courseKey);
   },
 
   /**
@@ -177,6 +200,11 @@ export const CourseDB = {
     if (updates.instructor !== undefined) {
       updateExpressions.push("instructor = :instructor");
       expressionAttributeValues[":instructor"] = updates.instructor;
+    }
+
+    if (updates.instructorId !== undefined) {
+      updateExpressions.push('instructorId = :instructorId');
+      expressionAttributeValues[':instructorId'] = updates.instructorId;
     }
 
     if (updates.students !== undefined) {

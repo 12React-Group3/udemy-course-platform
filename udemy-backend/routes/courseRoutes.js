@@ -20,14 +20,8 @@ const router = express.Router();
 
 // Public browsing (or keep public for now)
 router.get("/", getAllCourses);
-
-// Create + uploads: tutor/admin only
-router.post("/", protect, tutorOrAdmin, createCourse);
-router.post("/presign-video", protect, tutorOrAdmin, presignVideoUpload);
-router.post("/presign-thumbnail", protect, tutorOrAdmin, presignThumbnailUpload);
-router.get("/:courseId/thumbnail-url", getCourseThumbnailUrl);
-
-// Course read
+router.post("/", protect, createCourse);
+router.post("/presign-video", protect, presignVideoUpload);
 router.get("/:courseId/video-url", getCourseVideoUrl);
 router.get("/:courseId", getCourseByCourseId);
 

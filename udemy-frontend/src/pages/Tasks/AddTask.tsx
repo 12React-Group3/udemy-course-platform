@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { ChangeEvent, FormEvent, MouseEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { createTask } from "../../api/tasks";
 import "./AddTask.css";
 
@@ -236,14 +236,8 @@ export default function AddTask({
     }
   }
 
-  function handleBackdropClick(e: MouseEvent<HTMLDivElement>) {
-    if (e.target === e.currentTarget) {
-      requestClose(); // NEW guarded close
-    }
-  }
-
   return (
-    <div className="task-modal-backdrop" onClick={handleBackdropClick}>
+    <div className="task-modal-backdrop">
       <div className="task-modal-container">
         <div className="task-modal-header">
           <h2 className="task-modal-title">Create New Task</h2>
@@ -438,11 +432,11 @@ export default function AddTask({
 
           {message && <div className="task-form-message">{message}</div>}
 
-          <div className="task-form-actions">
-            <button type="button" className="cancel-btn" onClick={requestClose} disabled={loading}>
+          <div className="task-modal-actions">
+            <button type="button" className="task-btn-cancel" onClick={onClose} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="submit-btn" disabled={loading}>
+            <button type="submit" className="task-btn-submit" disabled={loading}>
               {loading ? "Creating..." : "Create Task"}
             </button>
           </div>

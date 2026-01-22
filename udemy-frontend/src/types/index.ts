@@ -1,8 +1,10 @@
 // API response types - matches backend course data structure
 export interface ApiCourse {
+  courseUid?: string;
   courseId: string;
   title: string;
   instructor: string;
+  instructorId?: string;
   videoURL?: string;
   videoKey?: string;
   courseTag?: string;
@@ -18,6 +20,7 @@ export interface Course {
   id: string;
   title: string;
   instructor: string;
+  instructorId: string;
   thumbnail: string;
   category: string;
   createdAt: Date;

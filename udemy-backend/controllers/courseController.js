@@ -78,11 +78,9 @@ export async function presignThumbnailUpload(req, res) {
   try {
     const { courseId, fileName, contentType } = req.body || {};
 
-    if (!courseId || !fileName || !contentType) {
-      return res.status(400).json({
-        success: false,
-        message: "courseId, fileName, contentType are required",
-      });
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
     }
 
     const allowed = new Set(["image/jpeg", "image/png"]);
@@ -141,6 +139,54 @@ export async function getCourseThumbnailUrl(req, res) {
 
     if (!course.thumbnailKey) {
       return res.status(400).json({ success: false, message: "No thumbnailKey on course" });
+export async function createCourse(req, res) {
+  try {
+    const { courseId, title, description, instructor, courseTag, videoURL, videoKey } = req.body || {};
+
+    if (!courseId || !title || !instructor) {
+      return res.status(400).json({
+        success: false,
+        message: "courseId, title, and instructor are required",
+      });
+    }
+
+    // Get instructorId from authenticated user
+    const instructorId = req.user?.id || "";
+
+    const existing = await CourseDB.findByCourseId(courseId);
+    if (existing) {
+      return res.status(409).json({ success: false, message: "Course already exists" });
+    }
+
+    const course = await CourseDB.create({
+      courseId,
+      title,
+      description: description || "",
+      videoURL: videoURL || "",
+      videoKey: videoKey || "",
+      instructor,
+      instructorId,
+      courseTag: courseTag || "",
+      students: [],
+    });
+
+    return res.status(201).json({ success: true, data: course });
+  } catch (err) {
+    console.error("createCourse error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+}
+
+/**
+ * GET /api/courses/:courseId
+ */
+export async function getCourseByCourseId(req, res) {
+  try {
+    const { courseId } = req.params;
+
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
     }
 
     const cmd = new GetObjectCommand({
@@ -423,7 +469,12 @@ export async function updateCourse(req, res) {
       return res.status(400).json({ success: false, message: "No valid fields to update" });
     }
 
-    const updated = await CourseDB.update(courseId, updates);
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const updated = await CourseDB.update(course.courseId, updates);
     if (!updated) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -441,8 +492,7 @@ export async function updateCourse(req, res) {
 export async function deleteCourse(req, res) {
   try {
     const { courseId } = req.params;
-
-    const course = await CourseDB.findByCourseId(courseId);
+    const course = await CourseDB.findByCourseKey(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -468,6 +518,102 @@ export async function deleteCourse(req, res) {
     return res.status(200).json({ success: true, data: removed });
   } catch (err) {
     console.error("deleteCourse error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+}
+
+/**
+ * POST /api/courses/:courseId/subscribe
+ */
+export async function subscribeCourse(req, res) {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const [course, user] = await Promise.all([
+      CourseDB.findByCourseKey(courseId),
+      UserDB.findById(userId),
+    ]);
+
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const courseKey = course.courseUid || course.courseId;
+    const enrolledSet = new Set([...(user.enrolledCourses || []), courseKey]);
+    const studentsSet = new Set([...(course.students || []), userId]);
+
+    const [updatedUser, updatedCourse] = await Promise.all([
+      UserDB.updateProfile(userId, { enrolledCourses: Array.from(enrolledSet) }),
+      CourseDB.update(course.courseId, { students: Array.from(studentsSet) }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscribed to course",
+      data: {
+        user: sanitizeUser(updatedUser),
+        course: updatedCourse,
+      },
+    });
+  } catch (err) {
+    console.error("subscribeCourse error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+}
+
+/**
+ * POST /api/courses/:courseId/unsubscribe
+ */
+export async function unsubscribeCourse(req, res) {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const [course, user] = await Promise.all([
+      CourseDB.findByCourseKey(courseId),
+      UserDB.findById(userId),
+    ]);
+
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const courseKey = course.courseUid || course.courseId;
+    const enrolled = (user.enrolledCourses || []).filter((c) => c !== courseKey);
+    const students = (course.students || []).filter((s) => s !== userId);
+
+    const [updatedUser, updatedCourse] = await Promise.all([
+      UserDB.updateProfile(userId, { enrolledCourses: enrolled }),
+      CourseDB.update(course.courseId, { students }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Unsubscribed from course",
+      data: {
+        user: sanitizeUser(updatedUser),
+        course: updatedCourse,
+      },
+    });
+  } catch (err) {
+    console.error("unsubscribeCourse error:", err);
     return res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 }

@@ -17,6 +17,8 @@ export interface TopbarProps {
 
 type CourseLike = {
   _id?: string;
+  id?: string;
+  courseUid?: string;
   courseId?: string;
   title?: string;
   description?: string;
@@ -195,7 +197,9 @@ export default function Topbar({ onLogoClick, onToggleSidebar, theme = "light", 
   function handleResultClick(course: CourseLike) {
     setSearchQuery("");
     setIsSearchFocused(false);
-    if (course.courseId) navigate(`/courses/${course.courseId}`);
+    if (course.courseUid) {
+      navigate(`/courses/${course.courseUid}`, { state: { from: location.pathname } });
+    }
   }
 
   function handleSignIn() {
@@ -248,7 +252,7 @@ export default function Topbar({ onLogoClick, onToggleSidebar, theme = "light", 
             {searchResults.length > 0 ? (
               searchResults.map((course) => (
                 <div
-                  key={course.courseId || course._id}
+                  key={course.courseUid || course.courseId || course._id}
                   className="search-result-item"
                   onClick={() => handleResultClick(course)}
                 >

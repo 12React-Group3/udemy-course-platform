@@ -315,7 +315,6 @@ export default function AllCourses() {
                     </svg>
                     <span>{course.instructor || "Unknown Instructor"}</span>
                   </div>
-
                   <div className="course-meta">
                     <span className="meta-item">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
