@@ -16,6 +16,9 @@ export const API_PATHS = {
     GET_BY_ID: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
     GET_VIDEO_URL: (courseId) =>
       `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/video-url`,
+    DELETE: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}`,
+    SUBSCRIBE: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/subscribe`,
+    UNSUBSCRIBE: (courseId) => `${BASE_URL}/api/courses/${encodeURIComponent(courseId)}/unsubscribe`,
   },
   TASKS: {
     GET_ALL: `${BASE_URL}/api/tasks`,

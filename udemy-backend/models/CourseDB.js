@@ -5,6 +5,7 @@
 import {
   docClient,
   TABLE_NAME,
+  GetCommand,
   PutCommand,
   QueryCommand,
   UpdateCommand,
@@ -24,6 +25,7 @@ export const CourseDB = {
     videoURL = '',
     videoKey = '',
     instructor,
+    instructorId = '',
     courseTag = '',
     students = [],
   }) {
@@ -43,6 +45,7 @@ export const CourseDB = {
       videoURL,
       videoKey,
       instructor,
+      instructorId,
       courseTag,
       students,
       createdAt: now,
@@ -76,6 +79,27 @@ export const CourseDB = {
     }
 
     return formatCourse(result.Items[0]);
+  },
+
+  /**
+   * Find course by courseUid or courseId
+   */
+  async findByCourseKey(courseKey) {
+    if (!courseKey) return null;
+
+    const result = await docClient.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `COURSE#${courseKey}`,
+        SK: `COURSE#${courseKey}`,
+      },
+    }));
+
+    if (result.Item) {
+      return formatCourse(result.Item);
+    }
+
+    return await this.findByCourseId(courseKey);
   },
 
   /**
@@ -146,6 +170,11 @@ export const CourseDB = {
     if (updates.instructor !== undefined) {
       updateExpressions.push('instructor = :instructor');
       expressionAttributeValues[':instructor'] = updates.instructor;
+    }
+
+    if (updates.instructorId !== undefined) {
+      updateExpressions.push('instructorId = :instructorId');
+      expressionAttributeValues[':instructorId'] = updates.instructorId;
     }
 
     if (updates.students !== undefined) {

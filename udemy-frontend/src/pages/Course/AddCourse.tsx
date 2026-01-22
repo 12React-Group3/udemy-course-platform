@@ -1,12 +1,32 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCourse, presignVideoUpload } from "../../api/courses";
 import "./AddCourse.css";
 
-export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructor = "" }) {
+type AddCourseProps = {
+  isOpen: boolean;
+  onClose?: () => void;
+  onSuccess?: () => void;
+  defaultInstructor?: string;
+};
+
+type CourseForm = {
+  courseId: string;
+  title: string;
+  description: string;
+  instructor: string;
+  courseTag: string;
+};
+
+export default function AddCourse({
+  isOpen,
+  onClose,
+  onSuccess,
+  defaultInstructor = "",
+}: AddCourseProps) {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CourseForm>({
     courseId: "",
     title: "",
     description: "",
@@ -14,12 +34,11 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
     courseTag: "",
   });
 
-  const [videoFile, setVideoFile] = useState(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setForm({
@@ -35,17 +54,18 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
     }
   }, [isOpen, defaultInstructor]);
 
-  // Handle escape key and body scroll
   useEffect(() => {
-    function handleEscape(e) {
-      if (e.key === "Escape" && !loading) {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !loading) {
         onClose?.();
       }
     }
+
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
     }
+
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
@@ -54,12 +74,12 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
 
   if (!isOpen) return null;
 
-  function handleChange(e) {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-  }
+  };
 
-  function handleVideoChange(e) {
+  const handleVideoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setMessage("");
 
@@ -76,9 +96,9 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
     }
 
     setVideoFile(file);
-  }
+  };
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage("");
 
@@ -96,7 +116,6 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
       setLoading(true);
       setUploadProgress(10);
 
-      // 1) Get presigned URL
       const presignRes = await presignVideoUpload({
         courseId: form.courseId,
         fileName: videoFile.name,
@@ -110,7 +129,6 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
       const { uploadUrl, fileUrl, key } = presignRes.data.data;
       setUploadProgress(30);
 
-      // 2) Upload to S3
       const putResp = await fetch(uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": "video/mp4" },
@@ -123,7 +141,6 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
 
       setUploadProgress(70);
 
-      // 3) Create course in DB
       const createRes = await createCourse({
         ...form,
         videoURL: fileUrl,
@@ -137,13 +154,18 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
       setUploadProgress(100);
       setMessage("Course created successfully!");
 
-      // Callback and navigate
       setTimeout(() => {
         onSuccess?.();
         onClose?.();
-        navigate(`/courses/${form.courseId}`);
+        const createdCourse = createRes.data?.data;
+        const courseUid = createdCourse?.courseUid;
+        if (courseUid) {
+          navigate(`/courses/${courseUid}`, { state: { from: "/dashboard" } });
+        } else {
+          console.warn("Created course missing courseUid, skipping navigation");
+        }
       }, 800);
-    } catch (err) {
+    } catch (err: any) {
       const msg =
         err?.response?.data?.error ||
         err?.response?.data?.message ||
@@ -154,16 +176,10 @@ export default function AddCourse({ isOpen, onClose, onSuccess, defaultInstructo
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleBackdropClick(e) {
-    if (e.target === e.currentTarget && !loading) {
-      onClose?.();
-    }
-  }
+  };
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
+    <div className="modal-backdrop">
       <div className="modal-container">
         <div className="modal-header">
           <h2 className="modal-title">Create New Course</h2>

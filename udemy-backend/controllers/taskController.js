@@ -3,7 +3,7 @@
  * Handles task and question CRUD operations
  */
 
-import { TaskDB, QuestionDB, CourseDB, TaskRecordDB } from '../models/index.js';
+import { TaskDB, QuestionDB, CourseDB, TaskRecordDB, UserDB } from '../models/index.js';
 
 /**
  * GET /api/tasks
@@ -531,6 +531,7 @@ export async function submitTask(req, res) {
 /**
  * GET /api/tasks/:taskId/records
  * Get all submission records for a task (tutor only)
+ * Returns: completed learners, not completed learners (enrolled but didn't submit)
  */
 export async function getTaskRecords(req, res) {
   try {
@@ -545,13 +546,47 @@ export async function getTaskRecords(req, res) {
       });
     }
 
-    // This would need a GSI query on taskId - for now, we'll scan
-    // In production, you'd want a proper GSI for this
-    const result = await TaskRecordDB.findByTaskId?.(taskId) || [];
+    // Get the course to find enrolled students
+    const course = await CourseDB.findByCourseId(task.courseId);
+    const enrolledStudentIds = course?.students || [];
+
+    // Get task records (submissions)
+    const records = await TaskRecordDB.findByTaskId(taskId) || [];
+    const completedUserIds = new Set(records.map(r => r.userId));
+
+    // Enrich records with user info
+    const completedLearners = await Promise.all(
+      records.map(async (record) => {
+        const user = await UserDB.findById(record.userId);
+        return {
+          ...record,
+          userName: user?.userName || 'Unknown User',
+          email: user?.email || '',
+        };
+      })
+    );
+
+    // Find enrolled students who haven't completed
+    const notCompletedIds = enrolledStudentIds.filter(id => !completedUserIds.has(id));
+    const notCompletedLearners = await Promise.all(
+      notCompletedIds.map(async (userId) => {
+        const user = await UserDB.findById(userId);
+        return {
+          userId,
+          userName: user?.userName || 'Unknown User',
+          email: user?.email || '',
+        };
+      })
+    );
 
     return res.status(200).json({
       success: true,
-      data: result,
+      data: {
+        completedLearners,
+        notCompletedLearners,
+        totalEnrolled: enrolledStudentIds.length,
+        totalCompleted: completedLearners.length,
+      },
     });
   } catch (err) {
     console.error('getTaskRecords error:', err);

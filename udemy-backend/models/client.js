@@ -63,6 +63,7 @@ export function formatCourse(item) {
     videoURL: item.videoURL,
     videoKey: item.videoKey || '',
     instructor: item.instructor,
+    instructorId: item.instructorId || '',
     students: item.students || [],
     courseTag: item.courseTag,
     createdAt: item.createdAt,

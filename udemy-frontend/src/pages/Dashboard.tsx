@@ -47,16 +47,20 @@ function getVideoThumbnail(videoURL: string | undefined): string | null {
 
 // Transform backend course data to frontend format
 function transformCourse(course: ApiCourse): Course {
+  // Use courseUid as the primary identifier for navigation
+  const id = course.courseUid || "";
+
   const thumbnail =
-    course.thumbnailUrl || getVideoThumbnail(course.videoURL) || `https://picsum.photos/seed/${course.courseId}/300/170`;
+    course.thumbnailUrl || getVideoThumbnail(course.videoURL) || `https://picsum.photos/seed/${id}/300/170`;
 
   let createdAt = course.createdAt ? new Date(course.createdAt) : new Date();
   if (isNaN(createdAt.getTime())) createdAt = new Date();
 
   return {
-    id: course.courseId,
+    id,
     title: course.title,
     instructor: course.instructor,
+    instructorId: course.instructorId || "",
     thumbnail,
     category: course.courseTag || "Uncategorized",
     createdAt,
@@ -93,7 +97,7 @@ interface CourseCardProps {
 
 function CourseCard({ course }: CourseCardProps) {
   return (
-    <Link to={`/courses/${course.id}`} className="course-card">
+    <Link to={`/courses/${course.id}`} state={{ from: "/dashboard" }} className="course-card">
       <div className="course-thumbnail">
         <img src={course.thumbnail} alt={course.title} />
       </div>
@@ -157,11 +161,9 @@ export default function Dashboard() {
 
   // Filter courses based on user role
   const roleCourses = useMemo(() => {
-    if (isTutorUser && userProfile?.userName) {
-      // Tutor: show courses they created (where instructor matches userName)
-      return allCourses.filter(
-        (c) => c.instructor?.toLowerCase() === userProfile.userName.toLowerCase()
-      );
+    if (isTutorUser && userProfile?.id) {
+      // Tutor: show courses they created (where instructorId matches user id)
+      return allCourses.filter((c) => c.instructorId === userProfile.id);
     }
 
     if (isLearnerUser && userProfile?.enrolledCourses) {
@@ -397,7 +399,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <AddCourseModal
+      <AddCourse
         isOpen={isAddCourseModalOpen}
         onClose={() => setIsAddCourseModalOpen(false)}
         onSuccess={() => window.location.reload()}

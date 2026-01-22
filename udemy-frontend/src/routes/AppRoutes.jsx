@@ -9,7 +9,8 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import AppLayout from "../components/AppLayout";
 import AdminRoute from "../components/AdminRoute";
 import Dashboard from "../pages/Dashboard";
-import TasksPage from "../pages/Tasks/TutorTasksPage";
+import TasksPage from "../pages/Tasks/TasksPage";
+import TaskDetailPage from "../pages/Tasks/TaskDetailPage";
 import AdminPage from "../pages/Admin/AdminPage";
 
 function CatchAll() {
@@ -39,10 +40,11 @@ export default function AppRoutes() {
 
         {/* Courses */}
         <Route path="/courses" element={<AllCourses />} />
-        <Route path="/courses/:courseId" element={<CoursePage />} />
+        <Route path="/courses/:courseUid" element={<CoursePage />} />
 
-        {/* Tasks (placeholder) */}
+        {/* Tasks */}
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
 
         {/* Profile */}
         <Route path="/profile" element={<ProfilePage />} />

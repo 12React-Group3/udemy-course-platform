@@ -3,8 +3,25 @@ import { Link } from "react-router-dom";
 import { fetchAllCourses } from "../../api/courses";
 import "./AllCourses.css";
 
+type CourseData = {
+  courseUid?: string;
+  courseId: string;
+  title?: string;
+  instructor?: string;
+  videoURL?: string;
+  courseTag?: string;
+  thumbnailUrl?: string;
+  description?: string;
+};
+
+type ApiResponseCourses = {
+  success?: boolean;
+  data?: CourseData[];
+  message?: string;
+};
+
 // Helper function to extract YouTube thumbnail from URL
-function getYouTubeThumbnail(videoURL) {
+function getYouTubeThumbnail(videoURL?: string) {
   if (!videoURL) return null;
   try {
     const url = new URL(videoURL);
@@ -22,70 +39,71 @@ function getYouTubeThumbnail(videoURL) {
   }
 }
 
-// Get thumbnail URL for a course (S3 thumbnail > YouTube thumbnail > null)
-function getCourseThumbnail(course) {
+function getCourseThumbnail(course: CourseData) {
   if (course.thumbnailUrl) return course.thumbnailUrl;
   if (course.videoURL) return getYouTubeThumbnail(course.videoURL);
   return null;
 }
 
 export default function AllCourses() {
-  const [coursesRaw, setCoursesRaw] = useState([]);
+  const [coursesRaw, setCoursesRaw] = useState<CourseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
 
-  const loadCourses = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await fetchAllCourses();
-      if (!res.data?.success) throw new Error(res.data?.message || "Failed to load courses");
-
-      setCoursesRaw(Array.isArray(res.data.data) ? res.data.data : []);
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || "Failed to load courses");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let cancelled = false;
+    const loadCourses = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await fetchAllCourses();
+        const payload = res.data as ApiResponseCourses;
+        if (payload.success) {
+          if (!cancelled) {
+            setCoursesRaw(payload.data || []);
+          }
+        } else {
+          throw new Error(payload.message || "Failed to load courses");
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err.response?.data?.message || err.message || "Failed to load courses");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     loadCourses();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Show all courses
-  const validCourses = useMemo(() => {
-    return coursesRaw;
-  }, [coursesRaw]);
+  const validCourses = useMemo(() => coursesRaw, [coursesRaw]);
 
-  // Extract unique categories from courses
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(validCourses.map((c) => c.courseTag || "Uncategorized"))];
-    return ["All", ...uniqueCategories.sort()];
+    const unique = [...new Set(validCourses.map((course) => course.courseTag || "Uncategorized"))];
+    return ["All", ...unique.sort()];
   }, [validCourses]);
 
-  // Filter courses by category and search query
   const courses = useMemo(() => {
     let filtered = validCourses;
-
-    // Filter by category
     if (activeCategory !== "All") {
-      filtered = filtered.filter((c) => (c.courseTag || "Uncategorized") === activeCategory);
+      filtered = filtered.filter(
+        (course) => (course.courseTag || "Uncategorized") === activeCategory
+      );
     }
-
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (c) =>
-          c.title?.toLowerCase().includes(query) ||
-          c.instructor?.toLowerCase().includes(query)
+        (course) =>
+          course.title?.toLowerCase().includes(query) ||
+          course.instructor?.toLowerCase().includes(query)
       );
     }
-
     return filtered;
   }, [validCourses, activeCategory, searchQuery]);
 
@@ -111,7 +129,7 @@ export default function AllCourses() {
           </svg>
           <h3>Something went wrong</h3>
           <p>{error}</p>
-          <button className="retry-button" onClick={loadCourses}>
+          <button className="retry-button" onClick={() => setError("")}>
             Try Again
           </button>
         </div>
@@ -176,56 +194,60 @@ export default function AllCourses() {
         </div>
       ) : (
         <div className="courses-grid">
-          {courses.map((course) => (
-            <Link
-              key={course.courseId}
-              to={`/courses/${encodeURIComponent(course.courseId)}`}
-              className="course-card"
-            >
-              <div className="course-thumbnail">
-                {getCourseThumbnail(course) ? (
-                  <img src={getCourseThumbnail(course)} alt={course.title} />
-                ) : (
-                  <div className="thumbnail-placeholder">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
+          {courses.map((course) => {
+            const courseKey = course.courseUid || course.courseId;
+            const thumbnail = getCourseThumbnail(course);
+            return (
+              <Link
+                key={courseKey}
+                to={`/courses/${encodeURIComponent(courseKey)}`}
+                className="course-card"
+              >
+                <div className="course-thumbnail">
+                  {thumbnail ? (
+                    <img src={thumbnail} alt={course.title} />
+                  ) : (
+                    <div className="thumbnail-placeholder">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="play-overlay">
+                    <div className="play-button">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
                   </div>
-                )}
-                <div className="play-overlay">
-                  <div className="play-button">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
+                </div>
+                <div className="course-info">
+                  <h3 className="course-title">{course.title}</h3>
+                  <div className="course-instructor">
+                    <svg className="instructor-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
                     </svg>
+                    <span>{course.instructor || "Unknown Instructor"}</span>
+                  </div>
+                  <div className="course-meta">
+                    <span className="meta-item">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      {course.courseTag || "Uncategorized"}
+                    </span>
+                    <span className="course-badge">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Available
+                    </span>
                   </div>
                 </div>
-              </div>
-              <div className="course-info">
-                <h3 className="course-title">{course.title}</h3>
-                <div className="course-instructor">
-                  <svg className="instructor-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                  <span>{course.instructor || "Unknown Instructor"}</span>
-                </div>
-                <div className="course-meta">
-                  <span className="meta-item">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    {course.courseTag || "Uncategorized"}
-                  </span>
-                  <span className="course-badge">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Available
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

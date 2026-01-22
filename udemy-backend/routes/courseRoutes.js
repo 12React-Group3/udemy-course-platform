@@ -16,8 +16,8 @@ import protect from "../middleware/auth.js";
 const router = express.Router();
 
 router.get("/", getAllCourses);
-router.post("/", createCourse);
-router.post("/presign-video", presignVideoUpload);
+router.post("/", protect, createCourse);
+router.post("/presign-video", protect, presignVideoUpload);
 router.get("/:courseId/video-url", getCourseVideoUrl);
 router.get("/:courseId", getCourseByCourseId);
 router.post("/:courseId/subscribe", protect, subscribeCourse);

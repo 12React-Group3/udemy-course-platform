@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchAllTasks, deleteTask } from "../../api/tasks";
 import { fetchAllCourses } from "../../api/courses";
+import { getProfile } from "../../api/profile";
 import AddTask from "./AddTask";
 import "./TutorTasksPage.css";
 
@@ -27,11 +29,21 @@ interface Course {
   courseId: string;
   title: string;
   instructor: string;
+  instructorId?: string;
+}
+
+interface UserProfile {
+  id: string;
+  userName: string;
+  email: string;
+  role: string;
 }
 
 export default function TutorTasksPage() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
@@ -44,9 +56,10 @@ export default function TutorTasksPage() {
       setLoading(true);
       setError("");
 
-      const [tasksRes, coursesRes] = await Promise.all([
+      const [tasksRes, coursesRes, profileRes] = await Promise.all([
         fetchAllTasks(),
         fetchAllCourses(),
+        getProfile().catch(() => null),
       ]);
 
       if (tasksRes.data?.success) {
@@ -54,7 +67,11 @@ export default function TutorTasksPage() {
       }
 
       if (coursesRes.data?.success) {
-        setCourses(coursesRes.data.data || []);
+        setAllCourses(coursesRes.data.data || []);
+      }
+
+      if (profileRes?.data?.success && profileRes.data.data?.user) {
+        setUserProfile(profileRes.data.data.user);
       }
     } catch (err: any) {
       const apiMessage =
@@ -71,13 +88,29 @@ export default function TutorTasksPage() {
     loadData();
   }, []);
 
+  // Filter courses to only show courses created by this tutor
+  const tutorCourses = useMemo(() => {
+    if (!userProfile?.id) return [];
+    return allCourses.filter((c) => c.instructorId === userProfile.id);
+  }, [allCourses, userProfile]);
+
+  // Get courseIds for tutor's courses
+  const tutorCourseIds = useMemo(() => {
+    return new Set(tutorCourses.map((c) => c.courseId));
+  }, [tutorCourses]);
+
+  // Filter tasks to only show tasks for tutor's courses
+  const tutorTasks = useMemo(() => {
+    return tasks.filter((t) => tutorCourseIds.has(t.courseId));
+  }, [tasks, tutorCourseIds]);
+
   const filteredTasks = useMemo(() => {
-    if (filterCourse === "all") return tasks;
-    return tasks.filter((t) => t.courseId === filterCourse);
-  }, [tasks, filterCourse]);
+    if (filterCourse === "all") return tutorTasks;
+    return tutorTasks.filter((t) => t.courseId === filterCourse);
+  }, [tutorTasks, filterCourse]);
 
   const getCourseName = (courseId: string) => {
-    const course = courses.find((c) => c.courseId === courseId);
+    const course = allCourses.find((c) => c.courseId === courseId);
     return course?.title || courseId;
   };
 
@@ -150,7 +183,7 @@ export default function TutorTasksPage() {
             onChange={(e) => setFilterCourse(e.target.value)}
           >
             <option value="all">All Courses</option>
-            {courses.map((course) => (
+            {tutorCourses.map((course) => (
               <option key={course.courseId} value={course.courseId}>
                 {course.title}
               </option>
@@ -210,6 +243,19 @@ export default function TutorTasksPage() {
                   </div>
                 </div>
                 <div className="task-card-actions">
+                  <button
+                    className="task-action-btn view"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/tasks/${task.taskId}`);
+                    }}
+                    title="View Details"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
                   <button
                     className="task-action-btn delete"
                     onClick={(e) => {
@@ -296,7 +342,7 @@ export default function TutorTasksPage() {
         isOpen={isAddTaskOpen}
         onClose={() => setIsAddTaskOpen(false)}
         onSuccess={loadData}
-        courses={courses}
+        courses={tutorCourses}
       />
     </div>
   );

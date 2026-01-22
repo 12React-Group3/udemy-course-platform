@@ -22,3 +22,15 @@ export function presignVideoUpload(payload) {
 export function fetchCourseVideoUrl(courseId) {
   return apiClient.get(API_PATHS.COURSES.GET_VIDEO_URL(courseId));
 }
+
+export function deleteCourse(courseId) {
+  return apiClient.delete(API_PATHS.COURSES.DELETE(courseId));
+}
+
+export function subscribeCourse(courseId) {
+  return apiClient.post(API_PATHS.COURSES.SUBSCRIBE(courseId));
+}
+
+export function unsubscribeCourse(courseId) {
+  return apiClient.post(API_PATHS.COURSES.UNSUBSCRIBE(courseId));
+}

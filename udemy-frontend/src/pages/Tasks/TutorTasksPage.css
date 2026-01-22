@@ -320,6 +320,11 @@
   color: #dc2626;
 }
 
+.task-action-btn.view:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
 .task-expand-btn:hover {
   background-color: var(--color-surface-muted, #f3f4f6);
 }

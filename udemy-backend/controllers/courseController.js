@@ -75,7 +75,7 @@ export async function getCourseVideoUrl(req, res) {
   try {
     const { courseId } = req.params;
 
-    const course = await CourseDB.findByCourseId(courseId);
+    const course = await CourseDB.findByCourseKey(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -123,6 +123,9 @@ export async function createCourse(req, res) {
       });
     }
 
+    // Get instructorId from authenticated user
+    const instructorId = req.user?.id || "";
+
     const existing = await CourseDB.findByCourseId(courseId);
     if (existing) {
       return res.status(409).json({ success: false, message: "Course already exists" });
@@ -135,6 +138,7 @@ export async function createCourse(req, res) {
       videoURL: videoURL || "",
       videoKey: videoKey || "",
       instructor,
+      instructorId,
       courseTag: courseTag || "",
       students: [],
     });
@@ -153,7 +157,7 @@ export async function getCourseByCourseId(req, res) {
   try {
     const { courseId } = req.params;
 
-    const course = await CourseDB.findByCourseId(courseId);
+    const course = await CourseDB.findByCourseKey(courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -205,7 +209,12 @@ export async function updateCourse(req, res) {
       return res.status(400).json({ success: false, message: "No valid fields to update" });
     }
 
-    const updated = await CourseDB.update(courseId, updates);
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const updated = await CourseDB.update(course.courseId, updates);
     if (!updated) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -223,7 +232,12 @@ export async function updateCourse(req, res) {
 export async function deleteCourse(req, res) {
   try {
     const { courseId } = req.params;
-    const removed = await CourseDB.remove(courseId);
+    const course = await CourseDB.findByCourseKey(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+
+    const removed = await CourseDB.remove(course.courseId);
     if (!removed) {
       return res.status(404).json({ success: false, message: "Course not found" });
     }
@@ -248,7 +262,7 @@ export async function subscribeCourse(req, res) {
     }
 
     const [course, user] = await Promise.all([
-      CourseDB.findByCourseId(courseId),
+      CourseDB.findByCourseKey(courseId),
       UserDB.findById(userId),
     ]);
 
@@ -260,12 +274,13 @@ export async function subscribeCourse(req, res) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const enrolledSet = new Set([...(user.enrolledCourses || []), courseId]);
+    const courseKey = course.courseUid || course.courseId;
+    const enrolledSet = new Set([...(user.enrolledCourses || []), courseKey]);
     const studentsSet = new Set([...(course.students || []), userId]);
 
     const [updatedUser, updatedCourse] = await Promise.all([
       UserDB.updateProfile(userId, { enrolledCourses: Array.from(enrolledSet) }),
-      CourseDB.update(courseId, { students: Array.from(studentsSet) }),
+      CourseDB.update(course.courseId, { students: Array.from(studentsSet) }),
     ]);
 
     return res.status(200).json({
@@ -295,7 +310,7 @@ export async function unsubscribeCourse(req, res) {
     }
 
     const [course, user] = await Promise.all([
-      CourseDB.findByCourseId(courseId),
+      CourseDB.findByCourseKey(courseId),
       UserDB.findById(userId),
     ]);
 
@@ -307,12 +322,13 @@ export async function unsubscribeCourse(req, res) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    const enrolled = (user.enrolledCourses || []).filter((c) => c !== courseId);
+    const courseKey = course.courseUid || course.courseId;
+    const enrolled = (user.enrolledCourses || []).filter((c) => c !== courseKey);
     const students = (course.students || []).filter((s) => s !== userId);
 
     const [updatedUser, updatedCourse] = await Promise.all([
       UserDB.updateProfile(userId, { enrolledCourses: enrolled }),
-      CourseDB.update(courseId, { students }),
+      CourseDB.update(course.courseId, { students }),
     ]);
 
     return res.status(200).json({
