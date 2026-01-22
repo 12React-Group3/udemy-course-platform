@@ -4,9 +4,11 @@ export interface ApiCourse {
   title: string;
   instructor: string;
   videoURL?: string;
+  videoKey?: string;
   courseTag?: string;
   createdAt?: string;
   description?: string;
+  isHidden?: boolean;
 }
 
 // Transformed course for frontend display
@@ -17,6 +19,12 @@ export interface Course {
   thumbnail: string;
   category: string;
   createdAt: Date;
+
+  // Optional fields for management/edit flows
+  description?: string;
+  videoURL?: string;
+  videoKey?: string;
+  isHidden?: boolean;
 }
 
 // Time filter options

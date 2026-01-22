@@ -5,6 +5,7 @@
 import {
   docClient,
   TABLE_NAME,
+  GetCommand,
   PutCommand,
   QueryCommand,
   UpdateCommand,
@@ -26,6 +27,7 @@ export const CourseDB = {
     instructor,
     courseTag = '',
     students = [],
+    isHidden = false,
   }) {
     const now = new Date().toISOString();
     const courseUid = generateId();
@@ -45,6 +47,7 @@ export const CourseDB = {
       instructor,
       courseTag,
       students,
+      isHidden: isHidden === true,
       createdAt: now,
     };
 
@@ -61,21 +64,33 @@ export const CourseDB = {
    * Find course by courseId
    */
   async findByCourseId(courseId) {
-    const result = await docClient.send(new QueryCommand({
-      TableName: TABLE_NAME,
-      IndexName: 'GSI1',
-      KeyConditionExpression: 'GSI1PK = :pk AND GSI1SK = :sk',
-      ExpressionAttributeValues: {
-        ':pk': 'ENTITY#COURSE',
-        ':sk': `COURSE#${courseId}`,
-      },
-    }));
+    const q = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
+        ExpressionAttributeValues: {
+          ":pk": "ENTITY#COURSE",
+          ":sk": `COURSE#${courseId}`,
+        },
+        // IMPORTANT: ensure we have PK/SK even if GSI projection is limited
+        ProjectionExpression: "PK, SK",
+      })
+    );
 
-    if (!result.Items || result.Items.length === 0) {
-      return null;
-    }
+    if (!q.Items || q.Items.length === 0) return null;
 
-    return formatCourse(result.Items[0]);
+    const { PK, SK } = q.Items[0];
+    if (!PK || !SK) return null;
+
+    const g = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK, SK },
+      })
+    );
+
+    return g.Item ? formatCourse(g.Item) : null;
   },
 
   /**
@@ -106,68 +121,88 @@ export const CourseDB = {
    * Update course
    */
   async update(courseId, updates) {
-    const course = await this.findByCourseId(courseId);
-    if (!course) {
-      return null;
-    }
+    // Resolve PK/SK first (don’t reconstruct keys)
+    const q = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
+        ExpressionAttributeValues: {
+          ":pk": "ENTITY#COURSE",
+          ":sk": `COURSE#${courseId}`,
+        },
+        ProjectionExpression: "PK, SK",
+      })
+    );
 
-    const courseKey = course.courseUid || course._id || course.courseId;
+    if (!q.Items || q.Items.length === 0) return null;
+
+    const { PK, SK } = q.Items[0];
+    if (!PK || !SK) return null;
 
     const updateExpressions = [];
     const expressionAttributeNames = {};
     const expressionAttributeValues = {};
 
     if (updates.title !== undefined) {
-      updateExpressions.push('#title = :title');
-      expressionAttributeNames['#title'] = 'title';
-      expressionAttributeValues[':title'] = updates.title;
+      updateExpressions.push("#title = :title");
+      expressionAttributeNames["#title"] = "title";
+      expressionAttributeValues[":title"] = updates.title;
     }
 
     if (updates.description !== undefined) {
-      updateExpressions.push('description = :description');
-      expressionAttributeValues[':description'] = updates.description;
+      updateExpressions.push("description = :description");
+      expressionAttributeValues[":description"] = updates.description;
     }
 
     if (updates.videoURL !== undefined) {
-      updateExpressions.push('videoURL = :videoURL');
-      expressionAttributeValues[':videoURL'] = updates.videoURL;
+      updateExpressions.push("videoURL = :videoURL");
+      expressionAttributeValues[":videoURL"] = updates.videoURL;
     }
 
     if (updates.videoKey !== undefined) {
-      updateExpressions.push('videoKey = :videoKey');
-      expressionAttributeValues[':videoKey'] = updates.videoKey;
+      updateExpressions.push("videoKey = :videoKey");
+      expressionAttributeValues[":videoKey"] = updates.videoKey;
     }
 
     if (updates.courseTag !== undefined) {
-      updateExpressions.push('courseTag = :courseTag');
-      expressionAttributeValues[':courseTag'] = updates.courseTag;
+      updateExpressions.push("courseTag = :courseTag");
+      expressionAttributeValues[":courseTag"] = updates.courseTag;
     }
 
     if (updates.instructor !== undefined) {
-      updateExpressions.push('instructor = :instructor');
-      expressionAttributeValues[':instructor'] = updates.instructor;
+      updateExpressions.push("instructor = :instructor");
+      expressionAttributeValues[":instructor"] = updates.instructor;
     }
 
     if (updates.students !== undefined) {
-      updateExpressions.push('students = :students');
-      expressionAttributeValues[':students'] = updates.students;
+      updateExpressions.push("students = :students");
+      expressionAttributeValues[":students"] = updates.students;
     }
 
-    if (updateExpressions.length === 0) {
-      return await this.findByCourseId(courseId);
+    if (updates.isHidden !== undefined) {
+      updateExpressions.push("isHidden = :isHidden");
+      expressionAttributeValues[":isHidden"] = updates.isHidden === true;
     }
 
-    const result = await docClient.send(new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `COURSE#${courseKey}`,
-        SK: `COURSE#${courseKey}`,
-      },
-      UpdateExpression: 'SET ' + updateExpressions.join(', '),
-      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
-      ExpressionAttributeValues: expressionAttributeValues,
-      ReturnValues: 'ALL_NEW',
-    }));
+    // (Optional but recommended) keep updatedAt
+    const now = new Date().toISOString();
+    updateExpressions.push("updatedAt = :updatedAt");
+    expressionAttributeValues[":updatedAt"] = now;
+
+    const result = await docClient.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { PK, SK },
+        UpdateExpression: "SET " + updateExpressions.join(", "),
+        ExpressionAttributeNames:
+          Object.keys(expressionAttributeNames).length > 0
+            ? expressionAttributeNames
+            : undefined,
+        ExpressionAttributeValues: expressionAttributeValues,
+        ReturnValues: "ALL_NEW",
+      })
+    );
 
     return formatCourse(result.Attributes);
   },
@@ -176,21 +211,40 @@ export const CourseDB = {
    * Delete course by courseId
    */
   async remove(courseId) {
-    const course = await this.findByCourseId(courseId);
-    if (!course) {
-      return null;
-    }
+    const q = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: "GSI1",
+        KeyConditionExpression: "GSI1PK = :pk AND GSI1SK = :sk",
+        ExpressionAttributeValues: {
+          ":pk": "ENTITY#COURSE",
+          ":sk": `COURSE#${courseId}`,
+        },
+        ProjectionExpression: "PK, SK",
+      })
+    );
 
-    const courseKey = course.courseUid || course._id || course.courseId;
+    if (!q.Items || q.Items.length === 0) return null;
 
-    await docClient.send(new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        PK: `COURSE#${courseKey}`,
-        SK: `COURSE#${courseKey}`,
-      },
-    }));
+    const { PK, SK } = q.Items[0];
+    if (!PK || !SK) return null;
 
-    return course;
+    // Read the full item first so we can return it (same behavior as before)
+    const g = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK, SK },
+      })
+    );
+    const existing = g.Item ? formatCourse(g.Item) : null;
+
+    await docClient.send(
+      new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: { PK, SK },
+      })
+    );
+
+    return existing;
   },
 };

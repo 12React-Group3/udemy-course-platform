@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo, ChangeEvent } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllCourses } from "../api/courses";
+import { fetchAllCourses, updateCourse as apiUpdateCourse, deleteCourse as apiDeleteCourse } from "../api/courses";
 import { getProfile } from "../api/profile";
-import { getRole, isTutor, isLearner } from "../auth/authStore";
+import { getRole, isTutor, isLearner, isAdmin } from "../auth/authStore";
 import AddCourse from "./Course/AddCourse";
+import EditCourse from "./Course/EditCourse";
 import "./Dashboard.css";
 import type { ApiCourse, Course, TimeFilterValue, TimeFilterOption, ApiResponse } from "../types";
 
@@ -48,7 +49,10 @@ function getVideoThumbnail(videoURL: string | undefined): string | null {
 // Transform backend course data to frontend format
 function transformCourse(course: ApiCourse): Course {
   const thumbnail =
-    course.thumbnailUrl || getVideoThumbnail(course.videoURL) || `https://picsum.photos/seed/${course.courseId}/300/170`;
+    // @ts-expect-error backend may send thumbnailUrl in future
+    (course as any).thumbnailUrl ||
+    getVideoThumbnail(course.videoURL) ||
+    `https://picsum.photos/seed/${course.courseId}/300/170`;
 
   let createdAt = course.createdAt ? new Date(course.createdAt) : new Date();
   if (isNaN(createdAt.getTime())) createdAt = new Date();
@@ -60,6 +64,10 @@ function transformCourse(course: ApiCourse): Course {
     thumbnail,
     category: course.courseTag || "Uncategorized",
     createdAt,
+    description: course.description,
+    videoURL: course.videoURL,
+    videoKey: course.videoKey,
+    isHidden: course.isHidden === true,
   };
 }
 
@@ -89,38 +97,85 @@ function filterByTime(courses: Course[], timeFilter: TimeFilterValue): Course[] 
 
 interface CourseCardProps {
   course: Course;
+  showManageActions: boolean;
+  onEdit: (course: Course) => void;
+  onDelete: (course: Course) => void;
+  onToggleHide: (course: Course) => void;
 }
 
-function CourseCard({ course }: CourseCardProps) {
+function CourseCard({ course, showManageActions, onEdit, onDelete, onToggleHide }: CourseCardProps) {
+  const stop = (e: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
-    <Link to={`/courses/${course.id}`} className="course-card">
-      <div className="course-thumbnail">
-        <img src={course.thumbnail} alt={course.title} />
-      </div>
-      <div className="course-info">
-        <h3 className="course-title">{course.title}</h3>
-        <p className="course-instructor">{course.instructor}</p>
-      </div>
-    </Link>
+    <div className={`course-card ${course.isHidden ? "hidden" : ""}`}>
+      <Link to={`/courses/${course.id}`} className="course-card-link">
+        <div className="course-thumbnail">
+          <img src={course.thumbnail} alt={course.title} />
+          {course.isHidden && <span className="course-badge">Hidden</span>}
+        </div>
+        <div className="course-info">
+          <h3 className="course-title">{course.title}</h3>
+          <p className="course-instructor">{course.instructor}</p>
+          <p className="course-category">{course.category}</p>
+          {course.description && <p className="course-description">{course.description}</p>}
+        </div>
+      </Link>
+
+      {showManageActions && (
+        <div className="course-actions" onClick={stop}>
+          <button className="course-action-btn" onClick={(e) => { stop(e); onEdit(course); }}>
+            Edit
+          </button>
+          <button className="course-action-btn danger" onClick={(e) => { stop(e); onDelete(course); }}>
+            Delete
+          </button>
+          <button className="course-action-btn" onClick={(e) => { stop(e); onToggleHide(course); }}>
+            {course.isHidden ? "Unhide on Course Page" : "Hide on Course Page"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
+
+type VisibilityFilter = "all" | "visible" | "hidden";
 
 export default function Dashboard() {
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeCategory, setActiveCategory] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [timeFilter, setTimeFilter] = useState<TimeFilterValue>("all");
+
+  // ✅ NEW: visibility filter toggle
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>("all");
+
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+
+  const [isEditCourseModalOpen, setIsEditCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   const carouselRef = useRef<HTMLDivElement>(null);
 
   const userRole = getRole();
   const isTutorUser = isTutor();
   const isLearnerUser = isLearner();
+  const isAdminUser = isAdmin();
+
+  async function reloadCourses() {
+    const coursesRes = (await fetchAllCourses()) as { data: ApiResponse<ApiCourse[]> };
+    if (!coursesRes.data.success) {
+      throw new Error(coursesRes.data.message || "Failed to load courses");
+    }
+    const transformed = coursesRes.data.data.map(transformCourse);
+    setAllCourses(transformed);
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -128,10 +183,9 @@ export default function Dashboard() {
         setLoading(true);
         setError("");
 
-        // Fetch courses and profile in parallel
         const [coursesRes, profileRes] = await Promise.all([
           fetchAllCourses() as Promise<{ data: ApiResponse<ApiCourse[]> }>,
-          getProfile().catch(() => null), // Profile might fail if not logged in
+          getProfile().catch(() => null),
         ]);
 
         if (!coursesRes.data.success) {
@@ -141,7 +195,6 @@ export default function Dashboard() {
         const transformed = coursesRes.data.data.map(transformCourse);
         setAllCourses(transformed);
 
-        // Set user profile if available
         if (profileRes?.data?.success && profileRes.data.data?.user) {
           setUserProfile(profileRes.data.data.user);
         }
@@ -155,54 +208,57 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  // Filter courses based on user role
   const roleCourses = useMemo(() => {
+    const base = allCourses;
+
     if (isTutorUser && userProfile?.userName) {
-      // Tutor: show courses they created (where instructor matches userName)
-      return allCourses.filter(
+      return base.filter(
         (c) => c.instructor?.toLowerCase() === userProfile.userName.toLowerCase()
       );
     }
 
     if (isLearnerUser && userProfile?.enrolledCourses) {
-      // Learner: show subscribed courses
       const enrolledSet = new Set(userProfile.enrolledCourses);
-      return allCourses.filter((c) => enrolledSet.has(c.id));
+      return base.filter((c) => enrolledSet.has(c.id));
     }
 
-    // Default: show all courses
-    return allCourses;
-  }, [allCourses, userProfile, isTutorUser, isLearnerUser]);
+    return base;
+  }, [allCourses, isTutorUser, isLearnerUser, userProfile]);
 
-  // Get dashboard title based on role
   const dashboardTitle = useMemo(() => {
     if (isTutorUser) return "My Published Courses";
     if (isLearnerUser) return "My Subscribed Courses";
+    if (isAdminUser) return "All Courses (Admin)";
     return "All Courses";
-  }, [isTutorUser, isLearnerUser]);
+  }, [isTutorUser, isLearnerUser, isAdminUser]);
 
-  // Get dashboard subtitle based on role
   const dashboardSubtitle = useMemo(() => {
     if (isTutorUser) return "Courses you have created and published";
     if (isLearnerUser) return "Courses you are enrolled in";
+    if (isAdminUser) return "Manage and browse all courses";
     return "Browse all available courses";
-  }, [isTutorUser, isLearnerUser]);
+  }, [isTutorUser, isLearnerUser, isAdminUser]);
 
   const categories = useMemo(() => {
-    const unique = [...new Set(roleCourses.map((c) => c.category))];
-    return unique.sort();
+    const unique = [...new Set(roleCourses.map((c) => c.category))].sort();
+    return ["All", ...unique];
   }, [roleCourses]);
 
-  useEffect(() => {
-    if (categories.length > 0 && !activeCategory) {
-      setActiveCategory(categories[0]);
-    }
-  }, [categories, activeCategory]);
-
+  // ✅ Apply category + visibility + time
   const filteredCourses = useMemo(() => {
-    if (!activeCategory) return [];
-    return filterByTime(roleCourses.filter((c) => c.category === activeCategory), timeFilter);
-  }, [roleCourses, activeCategory, timeFilter]);
+    let base =
+      activeCategory === "All"
+        ? roleCourses
+        : roleCourses.filter((c) => c.category === activeCategory);
+
+    if (visibilityFilter === "hidden") {
+      base = base.filter((c) => c.isHidden === true);
+    } else if (visibilityFilter === "visible") {
+      base = base.filter((c) => c.isHidden !== true);
+    }
+
+    return filterByTime(base, timeFilter);
+  }, [roleCourses, activeCategory, visibilityFilter, timeFilter]);
 
   const checkScrollPosition = () => {
     const el = carouselRef.current;
@@ -224,7 +280,7 @@ export default function Dashboard() {
   useEffect(() => {
     const el = carouselRef.current;
     if (el) el.scrollLeft = 0;
-  }, [activeCategory]);
+  }, [activeCategory, visibilityFilter]);
 
   const scrollLeft = () => {
     const el = carouselRef.current;
@@ -243,6 +299,69 @@ export default function Dashboard() {
   const handleTimeFilterChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setTimeFilter(e.target.value as TimeFilterValue);
   };
+
+  const canManageCourse = (course: Course) => {
+    if (isAdminUser) return true;
+    if (isTutorUser && userProfile?.userName) {
+      return course.instructor?.toLowerCase() === userProfile.userName.toLowerCase();
+    }
+    return false;
+  };
+
+  const handleEdit = (course: Course) => {
+    setEditingCourse(course);
+    setIsEditCourseModalOpen(true);
+  };
+
+  const handleDelete = async (course: Course) => {
+    const ok = window.confirm(`Delete course "${course.title}"? This cannot be undone.`);
+    if (!ok) return;
+
+    try {
+      await apiDeleteCourse(course.id);
+      setAllCourses((prev) => prev.filter((c) => c.id !== course.id));
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to delete course";
+      alert(msg);
+    }
+  };
+
+  const handleToggleHide = async (course: Course) => {
+    const nextHidden = !course.isHidden;
+
+    try {
+      const res = await apiUpdateCourse(course.id, { isHidden: nextHidden });
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Failed to update course");
+      }
+
+      setAllCourses((prev) =>
+        prev.map((c) => (c.id === course.id ? { ...c, isHidden: nextHidden } : c))
+      );
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to update course";
+      alert(msg);
+    }
+  };
+
+  const cycleVisibility = () => {
+    setVisibilityFilter((prev) => {
+      if (prev === "all") return "visible";
+      if (prev === "visible") return "hidden";
+      return "all";
+    });
+  };
+
+  const visibilityLabel =
+    visibilityFilter === "all" ? "All" : visibilityFilter === "visible" ? "Visible" : "Hidden";
 
   if (loading) {
     return (
@@ -276,10 +395,7 @@ export default function Dashboard() {
           {isTutorUser ? (
             <>
               <p>You haven't published any courses yet.</p>
-              <button
-                className="show-all-link"
-                onClick={() => setIsAddCourseModalOpen(true)}
-              >
+              <button className="show-all-link" onClick={() => setIsAddCourseModalOpen(true)}>
                 Create your first course
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="arrow-icon">
                   <path d="M12 5v14M5 12h14" />
@@ -323,17 +439,22 @@ export default function Dashboard() {
           <h1 className="dashboard-title">{dashboardTitle}</h1>
           <p className="dashboard-subtitle">{dashboardSubtitle}</p>
         </div>
-        {isTutorUser && (
-          <button
-            className="create-course-btn"
-            onClick={() => setIsAddCourseModalOpen(true)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Create Course
+
+        <div className="dashboard-header-actions">
+          {/* ✅ NEW: visibility toggle */}
+          <button className="create-course-btn" onClick={cycleVisibility} title="Toggle visibility filter">
+            {visibilityLabel}
           </button>
-        )}
+
+          {isTutorUser && (
+            <button className="create-course-btn" onClick={() => setIsAddCourseModalOpen(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Create Course
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="filter-bar">
@@ -372,7 +493,16 @@ export default function Dashboard() {
 
           <div className="course-carousel" ref={carouselRef}>
             {filteredCourses.length > 0 ? (
-              filteredCourses.map((course) => <CourseCard key={course.id} course={course} />)
+              filteredCourses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  showManageActions={canManageCourse(course)}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggleHide={handleToggleHide}
+                />
+              ))
             ) : (
               <div className="no-courses">
                 <p>No courses found for the selected filters.</p>
@@ -402,6 +532,30 @@ export default function Dashboard() {
         onClose={() => setIsAddCourseModalOpen(false)}
         onSuccess={() => window.location.reload()}
         defaultInstructor={userProfile?.userName || ""}
+      />
+
+      <EditCourse
+        isOpen={isEditCourseModalOpen}
+        onClose={() => {
+          setIsEditCourseModalOpen(false);
+          setEditingCourse(null);
+        }}
+        onSuccess={async () => {
+          try {
+            await reloadCourses();
+          } catch {
+            // ignore
+          }
+        }}
+        course={
+          editingCourse
+            ? {
+                ...editingCourse,
+                courseId: editingCourse.id,
+                courseTag: editingCourse.category,
+              }
+            : null
+        }
       />
     </div>
   );

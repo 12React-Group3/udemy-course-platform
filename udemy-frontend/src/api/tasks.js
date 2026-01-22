@@ -61,3 +61,7 @@ export function fetchMySubmissions() {
 export function fetchTaskRecords(taskId) {
   return apiClient.get(API_PATHS.TASKS.GET_RECORDS(taskId));
 }
+
+export function fetchTasksByCourseId(courseId) {
+  return apiClient.get(`/api/tasks?courseId=${encodeURIComponent(courseId)}`);
+}
