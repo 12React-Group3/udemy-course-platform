@@ -84,7 +84,8 @@ export default function TakeTaskPage() {
 
     try {
       setSubmitting(true);
-      const res = await submitTask(taskId, { responses: payload });
+      // Pass just the array - API function wraps it in { responses }
+      const res = await submitTask(taskId, payload);
       if (!res.data?.success) {
         throw new Error(res.data?.message || "Failed to submit task");
       }
