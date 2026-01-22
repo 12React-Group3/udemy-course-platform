@@ -10,6 +10,8 @@ import {
   PutCommand,
   QueryCommand,
   UpdateCommand,
+  DeleteCommand,
+  ScanCommand,
   generateId,
   formatUser,
 } from './client.js';
@@ -184,5 +186,81 @@ export const UserDB = {
    */
   async matchPassword(user, enteredPassword) {
     return await bcrypt.compare(enteredPassword, user.password);
+  },
+
+  /**
+   * Find all users (admin only)
+   */
+  async findAll() {
+    const result = await docClient.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'entityType = :entityType',
+      ExpressionAttributeValues: {
+        ':entityType': 'USER',
+      },
+    }));
+
+    return (result.Items || []).map(formatUser);
+  },
+
+  /**
+   * Delete a user by ID
+   */
+  async delete(userId) {
+    const user = await this.findById(userId);
+    if (!user) {
+      return null;
+    }
+
+    await docClient.send(new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: `USER#${userId}`,
+      },
+    }));
+
+    return user;
+  },
+
+  /**
+   * Update user role
+   */
+  async updateRole(userId, newRole) {
+    const now = new Date().toISOString();
+
+    const result = await docClient.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: `USER#${userId}`,
+        SK: `USER#${userId}`,
+      },
+      UpdateExpression: 'SET #role = :role, updatedAt = :updatedAt',
+      ExpressionAttributeNames: {
+        '#role': 'role',
+      },
+      ExpressionAttributeValues: {
+        ':role': newRole,
+        ':updatedAt': now,
+      },
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    return formatUser(result.Attributes);
+  },
+
+  /**
+   * Find multiple users by IDs
+   */
+  async findByIds(userIds) {
+    if (!userIds || userIds.length === 0) {
+      return [];
+    }
+
+    const users = await Promise.all(
+      userIds.map(userId => this.findById(userId))
+    );
+
+    return users.filter(user => user !== null);
   },
 };

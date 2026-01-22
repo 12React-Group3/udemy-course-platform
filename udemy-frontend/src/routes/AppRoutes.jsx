@@ -8,9 +8,11 @@ import Logout from "../pages/Auth/Logout";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AppLayout from "../components/AppLayout";
 import AdminRoute from "../components/AdminRoute";
+import TutorRoute from "../components/TutorRoute";
 import Dashboard from "../pages/Dashboard";
 import TasksPage from "../pages/Tasks/TutorTasksPage";
 import AdminPage from "../pages/Admin/AdminPage";
+import SubscribersPage from "../pages/Subscribers/SubscribersPage";
 
 function CatchAll() {
   const token = localStorage.getItem('token');
@@ -47,7 +49,17 @@ export default function AppRoutes() {
         {/* Profile */}
         <Route path="/profile" element={<ProfilePage />} />
 
-        {/* Admin (placeholder) */}
+        {/* Subscribers (tutor only) */}
+        <Route
+          path="/subscribers"
+          element={
+            <TutorRoute>
+              <SubscribersPage />
+            </TutorRoute>
+          }
+        />
+
+        {/* Admin */}
         <Route
           path="/admin"
           element={
