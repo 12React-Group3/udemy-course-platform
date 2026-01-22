@@ -12,7 +12,7 @@ import {
   deleteCourse,
 } from "../controllers/courseController.js";
 import protect from "../middleware/auth.js";
-import { tutorOrAdmin } from "../middleware/authorize.js";
+import { tutorOrAdmin, learnerOnly  } from "../middleware/authorize.js";
 
 const router = express.Router();
 
@@ -28,5 +28,8 @@ router.post("/:courseId/unsubscribe", protect, unsubscribeCourse);
 
 router.put("/:courseId", protect, tutorOrAdmin, updateCourse);
 router.delete("/:courseId", protect, tutorOrAdmin, deleteCourse);
+
+router.post("/:courseId/subscribe", protect, learnerOnly, subscribeCourse);
+router.post("/:courseId/unsubscribe", protect, learnerOnly, unsubscribeCourse);
 
 export default router;

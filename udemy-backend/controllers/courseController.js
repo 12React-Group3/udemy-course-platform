@@ -184,21 +184,38 @@ export async function subscribeCourse(req, res) {
   try {
     const { courseId } = req.params;
     const userId = req.user?.id;
+    const role = (req.user?.role || "").toLowerCase();
+
+    if (role !== "learner") {
+      return res.status(403).json({ success: false, message: "Only learners can subscribe" });
+    }
 
     const user = await UserDB.findById(userId);
     const course = await CourseDB.findByCourseId(courseId);
+
     if (!user || !course) {
       return res.status(404).json({ success: false, message: "User or course not found" });
     }
 
+    // 1) update user.enrolledCourses
     const enrolled = new Set(user.enrolledCourses || []);
     enrolled.add(courseId);
 
-    const updatedUser = await UserDB.update(userId, { enrolledCourses: Array.from(enrolled) });
+    // 2) update course.students
+    const students = new Set(course.students || []);
+    students.add(userId);
+
+    const [updatedUser, updatedCourse] = await Promise.all([
+      UserDB.updateProfile(userId, { enrolledCourses: Array.from(enrolled) }),
+      CourseDB.update(courseId, { students: Array.from(students) }),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: { user: sanitizeUser(updatedUser) },
+      data: {
+        user: sanitizeUser(updatedUser),
+        course: updatedCourse,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || "Server error" });
@@ -212,21 +229,38 @@ export async function unsubscribeCourse(req, res) {
   try {
     const { courseId } = req.params;
     const userId = req.user?.id;
+    const role = (req.user?.role || "").toLowerCase();
+
+    if (role !== "learner") {
+      return res.status(403).json({ success: false, message: "Only learners can unsubscribe" });
+    }
 
     const user = await UserDB.findById(userId);
     const course = await CourseDB.findByCourseId(courseId);
+
     if (!user || !course) {
       return res.status(404).json({ success: false, message: "User or course not found" });
     }
 
+    // 1) update user.enrolledCourses
     const enrolled = new Set(user.enrolledCourses || []);
     enrolled.delete(courseId);
 
-    const updatedUser = await UserDB.update(userId, { enrolledCourses: Array.from(enrolled) });
+    // 2) update course.students
+    const students = new Set(course.students || []);
+    students.delete(userId);
+
+    const [updatedUser, updatedCourse] = await Promise.all([
+      UserDB.updateProfile(userId, { enrolledCourses: Array.from(enrolled) }),
+      CourseDB.update(courseId, { students: Array.from(students) }),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: { user: sanitizeUser(updatedUser) },
+      data: {
+        user: sanitizeUser(updatedUser),
+        course: updatedCourse,
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message || "Server error" });

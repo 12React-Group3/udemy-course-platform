@@ -473,3 +473,41 @@
     font-size: 15px;
   }
 }
+
+.course-subscribe-row {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.subscribe-btn {
+  border: 1px solid var(--color-border, #d1d7dc);
+  background: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.subscribe-btn.subscribed {
+  background: var(--color-primary, #007bff);
+  border-color: var(--color-primary, #007bff);
+  color: #fff;
+}
+
+.subscribe-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.subscribe-toast {
+  position: sticky;
+  top: 10px;
+  z-index: 20;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, #d1d7dc);
+  background: #fff;
+  border-radius: 10px;
+  font-weight: 600;
+}
