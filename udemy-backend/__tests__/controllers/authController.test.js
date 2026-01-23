@@ -1,221 +1,394 @@
-import { mockRes, mockNext } from "../utils/testUtils.js";
+// __tests__/controllers/courseController.test.js
+import { mockRes } from "../utils/testUtils.js";
 
-vi.mock("../../models/index.js", () => ({
-  UserDB: {
-    findByEmail: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  CourseDB: {
+    findByCourseUid: vi.fn(),
+    findAll: vi.fn(),
     create: vi.fn(),
-    matchPassword: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  },
+  UserDB: {
     findById: vi.fn(),
     updateProfile: vi.fn(),
   },
+  getSignedUrlMock: vi.fn(),
 }));
 
-vi.mock("jsonwebtoken", () => ({
-  default: {
-    sign: vi.fn(() => "token123"),
-  },
+vi.mock("../../models/index.js", () => ({
+  CourseDB: mocks.CourseDB,
+  UserDB: mocks.UserDB,
 }));
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
-  getSignedUrl: vi.fn(async () => "https://signed-avatar"),
+  getSignedUrl: mocks.getSignedUrlMock,
 }));
 
 vi.mock("../../config/s3.js", () => ({
   s3Client: { send: vi.fn() },
-  S3_BUCKET_NAME: undefined, // force attachAvatarUrl to do nothing
+  S3_BUCKET_NAME: "test-bucket",
 }));
 
-import { UserDB } from "../../models/index.js";
-import { login, changePassword } from "../../controllers/authController.js";
+import {
+  presignVideoUpload,
+  presignThumbnailUpload,
+  getCourseVideoUrl,
+  getCourseThumbnailUrl,
+  getAllCourses,
+  createCourse,
+  getCourseByCourseId,
+  subscribeCourse,
+  unsubscribeCourse,
+  updateCourse,
+  deleteCourse,
+} from "../../controllers/courseController.js";
 
-describe("authController", () => {
+describe("courseController", () => {
   beforeEach(() => {
-    process.env.JWT_SECRET = "testsecret";
+    vi.clearAllMocks();
+    process.env.AWS_REGION = "us-west-2";
   });
 
-  it("login: 400 if missing email/password", async () => {
+  // ---------- presignVideoUpload ----------
+  it("presignVideoUpload: 400 missing fields", async () => {
     const req = { body: {} };
     const res = mockRes();
-    const next = mockNext();
+    await presignVideoUpload(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
 
-    await login(req, res, next);
+  it("presignVideoUpload: 400 not mp4", async () => {
+    const req = { body: { courseId: "C1", fileName: "a.mov", contentType: "video/quicktime" } };
+    const res = mockRes();
+    await presignVideoUpload(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("presignVideoUpload: 200 returns uploadUrl/fileUrl/key", async () => {
+    mocks.getSignedUrlMock.mockResolvedValueOnce("https://signed-upload");
+
+    const req = { body: { courseId: "C1", fileName: "a.mp4", contentType: "video/mp4" } };
+    const res = mockRes();
+
+    await presignVideoUpload(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.data.uploadUrl).toBe("https://signed-upload");
+    expect(payload.data.fileUrl).toContain("test-bucket.s3.us-west-2.amazonaws.com/");
+    expect(payload.data.key).toContain("courses/");
+  });
+
+  // ---------- presignThumbnailUpload ----------
+  it("presignThumbnailUpload: 400 missing fields", async () => {
+    const req = { body: {} };
+    const res = mockRes();
+    await presignThumbnailUpload(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("presignThumbnailUpload: 400 if not jpeg/png", async () => {
+    const req = { body: { courseId: "C1", fileName: "a.gif", contentType: "image/gif" } };
+    const res = mockRes();
+
+    await presignThumbnailUpload(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("presignThumbnailUpload: 200 returns uploadUrl/fileUrl/key", async () => {
+    mocks.getSignedUrlMock.mockResolvedValueOnce("https://signed-thumb");
+
+    const req = { body: { courseId: "C1", fileName: "a.png", contentType: "image/png" } };
+    const res = mockRes();
+
+    await presignThumbnailUpload(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.data.uploadUrl).toBe("https://signed-thumb");
+    expect(payload.data.fileUrl).toContain("test-bucket.s3");
+    expect(payload.data.key).toContain("thumbnail-");
+  });
+
+  // ---------- getCourseThumbnailUrl ----------
+  it("getCourseThumbnailUrl: 404 if course not found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseThumbnailUrl(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("getCourseThumbnailUrl: 400 if no thumbnailKey", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", thumbnailKey: "" });
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseThumbnailUrl(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("getCourseThumbnailUrl: 200 returns signedUrl", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", thumbnailKey: "thumb.png" });
+    mocks.getSignedUrlMock.mockResolvedValueOnce("https://signed-thumb-view");
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseThumbnailUrl(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.data.signedUrl).toBe("https://signed-thumb-view");
+  });
+
+  // ---------- getAllCourses ----------
+  it("getAllCourses: 200 returns list", async () => {
+    mocks.CourseDB.findAll.mockResolvedValueOnce([{ courseUid: "uid1" }]);
+
+    const req = {};
+    const res = mockRes();
+
+    await getAllCourses(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ---------- createCourse ----------
+  it("createCourse: 400 missing courseId/title", async () => {
+    const req = { body: {} };
+    const res = mockRes();
+    await createCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("createCourse: 400 missing instructor when not tutor and no instructor", async () => {
+    const req = { body: { courseId: "C1", title: "Intro" } };
+    const res = mockRes();
+    await createCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it("createCourse: 201 tutor forces instructor to req.user.userName", async () => {
+    mocks.CourseDB.create.mockResolvedValueOnce({ courseUid: "uid1", title: "Intro", instructor: "TutorName" });
+
+    const req = {
+      user: { id: "u1", role: "tutor", userName: "TutorName" },
+      body: { courseId: "C1", title: "Intro", instructor: "IGNORE" },
+    };
+    const res = mockRes();
+
+    await createCourse(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(mocks.CourseDB.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructor: "TutorName",
+        instructorId: "u1",
+      })
+    );
+  });
+
+  // ---------- getCourseByCourseId (courseUid) ----------
+  it("getCourseByCourseId: 404 if not found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseByCourseId(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("getCourseByCourseId: 200 if found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", title: "Intro" });
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseByCourseId(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ---------- getCourseVideoUrl ----------
+  it("getCourseVideoUrl: 404 if course not found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseVideoUrl(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("getCourseVideoUrl: 400 if no videoKey", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", videoKey: "" });
+
+    const req = { params: { courseUid: "uid1" } };
+    const res = mockRes();
+
+    await getCourseVideoUrl(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it("login: 401 if user not found", async () => {
-    UserDB.findByEmail.mockResolvedValueOnce(null);
+  it("getCourseVideoUrl: 200 returns signedUrl", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", videoKey: "k.mp4" });
+    mocks.getSignedUrlMock.mockResolvedValueOnce("https://signed-video");
 
-    const req = { body: { email: "a@test.com", password: "123456" } };
+    const req = { params: { courseUid: "uid1" } };
     const res = mockRes();
-    const next = mockNext();
 
-    await login(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
-
-  it("changePassword: 401 if current password wrong", async () => {
-    UserDB.findById.mockResolvedValueOnce({ _id: "u1" });
-    UserDB.matchPassword.mockResolvedValueOnce(false);
-
-    const req = { user: { id: "u1" }, body: { currentPassword: "old", newPassword: "new" } };
-    const res = mockRes();
-    const next = mockNext();
-
-    await changePassword(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(UserDB.updateProfile).not.toHaveBeenCalled();
-  });
-
-  it("changePassword: 200 when correct", async () => {
-    UserDB.findById.mockResolvedValueOnce({ _id: "u1" });
-    UserDB.matchPassword.mockResolvedValueOnce(true);
-    UserDB.updateProfile.mockResolvedValueOnce({});
-
-    const req = { user: { id: "u1" }, body: { currentPassword: "old", newPassword: "new" } };
-    const res = mockRes();
-    const next = mockNext();
-
-    await changePassword(req, res, next);
+    await getCourseVideoUrl(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(UserDB.updateProfile).toHaveBeenCalledWith("u1", { password: "new" });
-  });
-});
-
-it("login: 200 when password matches", async () => {
-  UserDB.findByEmail.mockResolvedValueOnce({
-    _id: "u1",
-    userName: "Henry",
-    email: "a@test.com",
-    role: "learner",
-    password: "hashed:any",
-    profileImage: null,
-    profileImageKey: null,
-    enrolledCourses: [],
-    createdAt: "x",
-    updatedAt: "y",
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.data.signedUrl).toBe("https://signed-video");
   });
 
-  // IMPORTANT: controller calls UserDB.matchPassword(user, password)
-  UserDB.matchPassword.mockResolvedValueOnce(true);
+  // ---------- updateCourse ----------
+  it("updateCourse: 404 if course not found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
 
-  const req = { body: { email: "a@test.com", password: "123456" } };
-  const res = mockRes();
-  const next = mockNext();
+    const req = { params: { courseUid: "uid1" }, body: { title: "New" }, user: { role: "admin" } };
+    const res = mockRes();
 
-  await login(req, res, next);
-
-  // If this fails, we know it threw
-  expect(next).not.toHaveBeenCalled();
-
-  expect(res.status).toHaveBeenCalledWith(200);
-
-  const payload = res.json.mock.calls[0][0];
-  expect(payload.success).toBe(true);
-  expect(payload.token).toBe("token123");
-});
-
-
-
-import { getProfile } from "../../controllers/authController.js";
-
-it("getProfile: 404 if user not found", async () => {
-  UserDB.findById.mockResolvedValueOnce(null);
-
-  const req = { user: { id: "u1" } };
-  const res = mockRes();
-  const next = mockNext();
-
-  await getProfile(req, res, next);
-
-  expect(res.status).toHaveBeenCalledWith(404);
-});
-
-import { updateProfile } from "../../controllers/authController.js";
-
-it("updateProfile: 200 updates userName/email", async () => {
-  UserDB.updateProfile.mockResolvedValueOnce({
-    _id: "u1",
-    userName: "New",
-    email: "new@test.com",
-    role: "learner",
-    enrolledCourses: [],
-    createdAt: "x",
-    updatedAt: "y",
+    await updateCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  const req = { user: { id: "u1" }, body: { userName: "New", email: "new@test.com" } };
-  const res = mockRes();
-  const next = mockNext();
+  it("updateCourse: 403 if not admin and not owner tutor", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", instructor: "OtherTutor" });
 
-  await updateProfile(req, res, next);
+    const req = {
+      params: { courseUid: "uid1" },
+      body: { title: "New" },
+      user: { role: "tutor", userName: "TutorName" },
+    };
+    const res = mockRes();
 
-  expect(res.status).toHaveBeenCalledWith(200);
-  expect(UserDB.updateProfile).toHaveBeenCalledWith("u1", expect.objectContaining({
-    userName: "New",
-    email: "new@test.com",
-  }));
-});
-
-import { register } from "../../controllers/authController.js";
-
-it("register: 400 if user already exists", async () => {
-  UserDB.findByEmail.mockResolvedValueOnce({ _id: "u1" });
-
-  const req = { body: { userName: "H", email: "a@test.com", password: "123456", role: "learner" } };
-  const res = mockRes();
-  const next = mockNext();
-
-  await register(req, res, next);
-
-  expect(res.status).toHaveBeenCalledWith(400);
-});
-
-it("getProfile: 200 returns hydrated user", async () => {
-  UserDB.findById.mockResolvedValueOnce({
-    _id: "u1",
-    userName: "Henry",
-    email: "a@test.com",
-    role: "learner",
-    profileImage: null,
-    profileImageKey: null,
-    enrolledCourses: [],
-    createdAt: "x",
-    updatedAt: "y",
+    await updateCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
-  const req = { user: { id: "u1" } };
-  const res = mockRes();
-  const next = mockNext();
+  it("updateCourse: 400 if no valid fields", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", instructor: "TutorName" });
 
-  await getProfile(req, res, next);
+    const req = {
+      params: { courseUid: "uid1" },
+      body: {},
+      user: { role: "tutor", userName: "TutorName" },
+    };
+    const res = mockRes();
 
-  expect(res.status).toHaveBeenCalledWith(200);
-});
-
-it("register: 201 success when new user", async () => {
-  UserDB.findByEmail.mockResolvedValueOnce(null);
-  UserDB.create.mockResolvedValueOnce({
-    _id: "u1",
-    userName: "Henry",
-    email: "a@test.com",
-    role: "learner",
-    profileImage: null,
-    profileImageKey: null,
-    enrolledCourses: [],
+    await updateCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  const req = { body: { userName: "Henry", email: "a@test.com", password: "123456", role: "learner" } };
-  const res = mockRes();
-  const next = mockNext();
+  it("updateCourse: 200 updates", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", instructor: "TutorName" });
+    mocks.CourseDB.update.mockResolvedValueOnce({ courseUid: "uid1", title: "New" });
 
-  await register(req, res, next);
+    const req = {
+      params: { courseUid: "uid1" },
+      body: { title: "New" },
+      user: { role: "tutor", userName: "TutorName" },
+    };
+    const res = mockRes();
 
-  expect(res.status).toHaveBeenCalledWith(201);
-  const payload = res.json.mock.calls[0][0];
-  expect(payload.success).toBe(true);
-  expect(payload.data.user.email).toBe("a@test.com");
+    await updateCourse(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mocks.CourseDB.update).toHaveBeenCalledWith("uid1", expect.objectContaining({ title: "New" }));
+  });
+
+  // ---------- deleteCourse ----------
+  it("deleteCourse: 404 if not found", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
+
+    const req = { params: { courseUid: "uid1" }, user: { role: "admin" } };
+    const res = mockRes();
+
+    await deleteCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("deleteCourse: 403 if not allowed", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", instructor: "OtherTutor" });
+
+    const req = { params: { courseUid: "uid1" }, user: { role: "tutor", userName: "TutorName" } };
+    const res = mockRes();
+
+    await deleteCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("deleteCourse: 200 removed (owner tutor)", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", instructor: "TutorName" });
+    mocks.CourseDB.remove.mockResolvedValueOnce({ courseUid: "uid1" });
+
+    const req = { params: { courseUid: "uid1" }, user: { role: "tutor", userName: "TutorName" } };
+    const res = mockRes();
+
+    await deleteCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // ---------- subscribe/unsubscribe ----------
+  it("subscribeCourse: 401 if no userId", async () => {
+    const req = { params: { courseUid: "uid1" }, user: null };
+    const res = mockRes();
+
+    await subscribeCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("subscribeCourse: 404 if course missing", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce(null);
+    mocks.UserDB.findById.mockResolvedValueOnce({ _id: "u1" });
+
+    const req = { params: { courseUid: "uid1" }, user: { id: "u1" } };
+    const res = mockRes();
+
+    await subscribeCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("subscribeCourse: 200 adds courseUid to user + userId to course", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", students: [] });
+    mocks.UserDB.findById.mockResolvedValueOnce({ _id: "u1", enrolledCourses: [] });
+
+    mocks.UserDB.updateProfile.mockResolvedValueOnce({ _id: "u1", enrolledCourses: ["uid1"], password: "x" });
+    mocks.CourseDB.update.mockResolvedValueOnce({ courseUid: "uid1", students: ["u1"] });
+
+    const req = { params: { courseUid: "uid1" }, user: { id: "u1" } };
+    const res = mockRes();
+
+    await subscribeCourse(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mocks.UserDB.updateProfile).toHaveBeenCalledWith("u1", expect.objectContaining({ enrolledCourses: ["uid1"] }));
+    expect(mocks.CourseDB.update).toHaveBeenCalledWith("uid1", expect.objectContaining({ students: ["u1"] }));
+  });
+
+  it("unsubscribeCourse: 200 removes ids", async () => {
+    mocks.CourseDB.findByCourseUid.mockResolvedValueOnce({ courseUid: "uid1", students: ["u1"] });
+    mocks.UserDB.findById.mockResolvedValueOnce({ _id: "u1", enrolledCourses: ["uid1"] });
+
+    mocks.UserDB.updateProfile.mockResolvedValueOnce({ _id: "u1", enrolledCourses: [] });
+    mocks.CourseDB.update.mockResolvedValueOnce({ courseUid: "uid1", students: [] });
+
+    const req = { params: { courseUid: "uid1" }, user: { id: "u1" } };
+    const res = mockRes();
+
+    await unsubscribeCourse(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
 });

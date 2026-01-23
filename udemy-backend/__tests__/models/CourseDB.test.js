@@ -1,70 +1,114 @@
-import { sendMock, docClient, TABLE_NAME } from "./__mocks__/dynamoMock.js";
+// __tests__/middleware/errorHandler.test.js
+import errorHandler from "../../middleware/errorHandler.js";
+import { mockRes } from "../utils/testUtils.js";
 
-vi.mock("../../config/dynamodb.js", () => ({
-  docClient,
-  TABLE_NAME,
-  default: docClient,
-}));
-
-import { CourseDB } from "../../models/CourseDB.js";
-
-describe("CourseDB", () => {
+describe("errorHandler", () => {
   beforeEach(() => {
-    sendMock.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    process.env.NODE_ENV = "test";
   });
 
-  it("findByCourseId returns null when no items", async () => {
-    sendMock.mockResolvedValueOnce({ Items: [] });
-
-    const course = await CourseDB.findByCourseId("C1");
-    expect(course).toBeNull();
-
-    const cmd = sendMock.mock.calls[0][0];
-    expect(cmd.input.TableName).toBe(TABLE_NAME);
-    expect(cmd.input.IndexName).toBe("GSI1");
+  afterEach(() => {
+    console.error.mockRestore();
   });
 
-  it("create sends PutCommand with expected attributes", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(1700000000000);
-    vi.spyOn(Math, "random").mockReturnValue(0.123456);
+  it("defaults to 500", () => {
+    const err = new Error("boom");
+    const res = mockRes();
 
-    sendMock.mockResolvedValueOnce({});
+    errorHandler(err, {}, res, () => {});
 
-    const created = await CourseDB.create({
-      courseId: "C1",
-      title: "Intro",
-      instructor: "u1",
-    });
-
-    expect(created).toMatchObject({
-      courseId: "C1",
-      title: "Intro",
-      instructor: "u1",
-    });
-
-    const cmd = sendMock.mock.calls[0][0];
-    expect(cmd.input.TableName).toBe(TABLE_NAME);
-    expect(cmd.input.ConditionExpression).toBe("attribute_not_exists(PK)");
-    expect(cmd.input.Item.GSI1PK).toBe("ENTITY#COURSE");
-    expect(cmd.input.Item.GSI1SK).toBe("COURSE#C1");
-    expect(cmd.input.Item.PK).toMatch(/^COURSE#/);
-    expect(cmd.input.Item.SK).toMatch(/^COURSE#/);
-
-    Date.now.mockRestore();
-    Math.random.mockRestore();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: "boom",
+        statusCode: 500,
+      })
+    );
   });
 
-  it("update returns null if course not found", async () => {
-    sendMock.mockResolvedValueOnce({ Items: [] }); // findByCourseId
+  it("handles JsonWebTokenError -> 401", () => {
+    const err = new Error("bad token");
+    err.name = "JsonWebTokenError";
 
-    const updated = await CourseDB.update("C1", { title: "New" });
-    expect(updated).toBeNull();
+    const res = mockRes();
+    errorHandler(err, {}, res, () => {});
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 401,
+        error: "Invalid token. Please log in again",
+      })
+    );
   });
 
-  it("remove returns null if course not found", async () => {
-    sendMock.mockResolvedValueOnce({ Items: [] }); // findByCourseId
+  it("handles multer LIMIT_FILE_SIZE -> 400", () => {
+    const err = new Error("too big");
+    err.code = "LIMIT_FILE_SIZE";
 
-    const removed = await CourseDB.remove("C1");
-    expect(removed).toBeNull();
+    const res = mockRes();
+    errorHandler(err, {}, res, () => {});
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 400,
+        error: "File size is too large. Max limit is 10MB",
+      })
+    );
+  });
+
+  it("handles CastError -> 404", () => {
+    const err = new Error("cast");
+    err.name = "CastError";
+    err.value = "abc123";
+
+    const res = mockRes();
+    errorHandler(err, {}, res, () => {});
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 404,
+      })
+    );
+  });
+
+  it("handles duplicate key 11000 -> 400", () => {
+    const err = new Error("dup");
+    err.code = 11000;
+    err.keyValue = { email: "x@test.com" };
+
+    const res = mockRes();
+    errorHandler(err, {}, res, () => {});
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 400,
+      })
+    );
+  });
+
+  it("handles ValidationError -> 400", () => {
+    const err = new Error("validation");
+    err.name = "ValidationError";
+    err.errors = {
+      email: { message: "Email required" },
+      password: { message: "Password required" },
+    };
+
+    const res = mockRes();
+    errorHandler(err, {}, res, () => {});
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 400,
+        error: expect.stringContaining("Email required"),
+      })
+    );
   });
 });

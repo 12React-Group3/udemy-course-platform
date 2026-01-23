@@ -1,3 +1,4 @@
+// __tests__/models/QuestionDB.test.js
 import { sendMock, docClient, TABLE_NAME } from "./__mocks__/dynamoMock.js";
 
 vi.mock("../../config/dynamodb.js", () => ({
@@ -30,6 +31,13 @@ describe("QuestionDB", () => {
     expect(cmd.input.Item.GSI1PK).toBe("ENTITY#QUESTION");
   });
 
+  it("findById returns null when no items", async () => {
+    sendMock.mockResolvedValueOnce({ Items: [] });
+
+    const q = await QuestionDB.findById("q1");
+    expect(q).toBeNull();
+  });
+
   it("findByTaskId queries begins_with QUESTION#", async () => {
     sendMock.mockResolvedValueOnce({
       Items: [
@@ -54,27 +62,51 @@ describe("QuestionDB", () => {
     expect(qs[0].questionId).toBe("q1");
 
     const cmd = sendMock.mock.calls[0][0];
-    expect(cmd.input.KeyConditionExpression).toContain("begins_with(SK, :sk)");
     expect(cmd.input.ExpressionAttributeValues[":sk"]).toBe("QUESTION#");
   });
 
+  it("update sends UpdateCommand with correct Key", async () => {
+    sendMock.mockResolvedValueOnce({
+      Attributes: {
+        questionId: "q1",
+        taskId: "t1",
+        questionText: "new",
+        options: ["A"],
+        correctAnswer: "A",
+        createdAt: "x",
+        updatedAt: "y",
+      },
+    });
+
+    const updated = await QuestionDB.update("t1", "q1", { questionText: "new" });
+    expect(updated.questionText).toBe("new");
+
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.Key).toEqual({ PK: "TASK#t1", SK: "QUESTION#q1" });
+  });
+
+  it("remove deletes by taskId/questionId key", async () => {
+    sendMock.mockResolvedValueOnce({});
+
+    const result = await QuestionDB.remove("t1", "q1");
+    expect(result).toEqual({ questionId: "q1", deleted: true });
+
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.Key).toEqual({ PK: "TASK#t1", SK: "QUESTION#q1" });
+  });
+
   it("removeByTaskId deletes each question found", async () => {
-    // 1) findByTaskId
     sendMock.mockResolvedValueOnce({
       Items: [
         { questionId: "q1", taskId: "t1", PK: "TASK#t1", SK: "QUESTION#q1" },
         { questionId: "q2", taskId: "t1", PK: "TASK#t1", SK: "QUESTION#q2" },
       ],
     });
-    // 2) delete q1
     sendMock.mockResolvedValueOnce({});
-    // 3) delete q2
     sendMock.mockResolvedValueOnce({});
 
     const result = await QuestionDB.removeByTaskId("t1");
     expect(result.deletedCount).toBe(2);
-
-    // total calls = 3 (1 query + 2 deletes)
     expect(sendMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,3 +1,4 @@
+// __tests__/middleware/authorize.test.js
 import { authorize } from "../../middleware/authorize.js";
 import { mockRes, mockNext } from "../utils/testUtils.js";
 

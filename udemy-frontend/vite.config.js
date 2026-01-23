@@ -21,9 +21,12 @@ export default defineConfig({
     restoreMocks: true,
     mockReset: true,
     coverage: {
-    provider: "v8",
-    reporter: ["text", "html"],
-    reportsDirectory: "./coverage",
-  },
+      provider: "v8",
+      reporter: ["text", "html"],
+      reportsDirectory: "./coverage",
+      exclude: [
+      "**/*.css",
+      ],
+    },
   },
 })
