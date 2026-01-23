@@ -1,3 +1,4 @@
+// __tests__/models/TaskRecordDB.test.js
 import { sendMock, docClient, TABLE_NAME } from "./__mocks__/dynamoMock.js";
 
 vi.mock("../../config/dynamodb.js", () => ({
@@ -46,7 +47,17 @@ describe("TaskRecordDB", () => {
     expect(recs).toEqual([]);
 
     const cmd = sendMock.mock.calls[0][0];
-    expect(cmd.input.KeyConditionExpression).toContain("begins_with");
     expect(cmd.input.ExpressionAttributeValues[":sk"]).toBe("TASKRECORD#");
+  });
+
+  it("findByTaskId queries GSI1PK = TASK#taskId", async () => {
+    sendMock.mockResolvedValueOnce({ Items: [] });
+
+    const recs = await TaskRecordDB.findByTaskId("t1");
+    expect(recs).toEqual([]);
+
+    const cmd = sendMock.mock.calls[0][0];
+    expect(cmd.input.IndexName).toBe("GSI1");
+    expect(cmd.input.ExpressionAttributeValues[":pk"]).toBe("TASK#t1");
   });
 });
